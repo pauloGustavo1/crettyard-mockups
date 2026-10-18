@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="crettyard">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crettyard · Protótipo navegável</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+  [data-theme="crettyard"]{
+    color-scheme: light;
+    --color-base-100:#fefdfc; --color-base-200:#eceae8; --color-base-300:#aba7a3; --color-base-content:#272626;
+    --color-primary:#613b1d; --color-primary-content:#fefdfc;
+    --color-secondary:#b58759; --color-secondary-content:#272626;
+    --color-accent:#613b1d; --color-accent-content:#fefdfc;
+    --color-neutral:#272626; --color-neutral-content:#fefdfc;
+    --color-info:#175cd3; --color-info-content:#fefdfc;
+    --color-success:#027a48; --color-success-content:#fefdfc;
+    --color-warning:#a15c07; --color-warning-content:#fefdfc;
+    --color-error:#b42318; --color-error-content:#fefdfc;
+    --radius-selector:0.5rem; --radius-field:0.5rem; --radius-box:0.5rem;
+    --size-selector:0.25rem; --size-field:0.25rem; --border:1px; --depth:0; --noise:0;
+  }
+  html,body{font-family:"Roboto",system-ui,sans-serif;}
+  .row-card{transition:box-shadow .15s, background-color .15s;}
+  .row-card:hover{box-shadow:0 2px 10px rgba(39,38,38,.08);}
+  .row-card[aria-selected="true"]{background:#fbf6f1; box-shadow:0 0 0 2px #613b1d inset;}
+  .row-card:focus-visible{outline:3px solid #b58759; outline-offset:2px;}
+  .steps .step:before{height:.35rem;}
+  .steps .step-attn + .step:before, .steps .step-attn:before{background:#fee4e2;}
+  .steps .step-attn:after{background:#b42318 !important;color:#fefdfc !important;}
+  /* right-hand drawer on desktop, bottom sheet on small screens */
+  @media (min-width:1024px){
+    #panel{place-items:stretch end;}
+    #panel .modal-box{height:100vh;max-height:100vh;width:34rem;max-width:34rem;border-radius:0;}
+  }
+  .trow{cursor:pointer;}
+  .trow:hover td{background:#fbf6f1;}
+  .trow:focus-visible{outline:3px solid #b58759; outline-offset:-3px;}
+  .num-in::-webkit-outer-spin-button,.num-in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .num-in{-moz-appearance:textfield}
+  [hidden]{display:none !important;}
+  #toast{inset:auto 0 0 auto;margin:0;border:0;background:transparent;padding:1rem;overflow:visible;position:fixed;}
+</style>
+<style type="text/tailwindcss">
+  @theme {
+    --font-sans: "Roboto", system-ui, sans-serif;
+    --color-canvas:#f2f1f0; --color-muted:#5e5c5b; --color-menu-active:#e7d7c8; --color-sidebar:#272626;
+    --color-attention:#b42318; --color-attention-soft:#fee4e2;
+    --color-caution:#c4320a; --color-caution-soft:#ffead5;
+    --color-notice:#a15c07; --color-notice-soft:#fef0c7;
+    --color-sinfo:#175cd3; --color-sinfo-soft:#d1e0ff;
+    --color-rest:#667085; --color-rest-soft:#f2f4f7;
+    --color-ok:#027a48; --color-ok-soft:#d1fadf;
+  }
+</style>
+</head>
+<body class="bg-canvas text-base-content">
+<div id="app" class="drawer lg:drawer-open">
+  <input id="nav" type="checkbox" class="drawer-toggle">
+  <div class="drawer-content min-h-screen flex flex-col min-w-0">
+
+    <!-- Header -->
+    <header class="bg-base-100 border-b border-base-200 px-4 lg:px-6 py-4 flex flex-wrap items-center gap-3 sticky top-0 z-20">
+      <label for="nav" class="btn btn-ghost btn-square lg:hidden" aria-label="Abrir menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </label>
+      <div class="flex-1 min-w-0">
+        <h1 id="pgTitle" class="text-2xl font-bold leading-tight truncate">Painel operacional</h1>
+        <p id="pgSub" class="text-sm text-muted truncate">Somente consulta</p>
+      </div>
+      <form id="pieceForm" class="join hidden md:flex" autocomplete="off" data-only="painel">
+        <input id="pieceInput" class="input join-item w-36" placeholder="Peça nº" inputmode="numeric" aria-label="Número da peça">
+        <button class="btn join-item" type="submit">Buscar peça nº</button>
+      </form>
+      <button class="btn btn-outline hidden 2xl:inline-flex" data-only="painel" data-act-global="registrarProducao">Registrar produção</button>
+      <button id="hdrPrimary" class="btn btn-primary">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span id="hdrPrimaryLabel" class="hidden sm:inline">Novo pedido</span>
+      </button>
+      <div class="hidden sm:flex items-center gap-3 pl-3 border-l border-base-200">
+        <div class="hidden md:flex flex-col items-start leading-none gap-1" title="Alternar perfil (somente protótipo)">
+          <span class="text-[11px] uppercase tracking-wide text-muted">Perfil</span>
+          <div class="join" role="group" aria-label="Perfil do protótipo" data-role-toggle></div>
+        </div>
+        <div class="avatar avatar-placeholder"><div class="bg-secondary text-secondary-content w-10 rounded-full"><span class="font-bold" id="userInitials">MS</span></div></div>
+        <div class="leading-tight hidden" id="userBlock"><div class="font-medium" id="userName">marta.souza</div><div class="text-xs text-muted" id="userRole">Admin</div></div>
+        <button class="btn btn-ghost px-3" data-act-global="sair">Sair</button>
+      </div>
+      <!-- mobile piece search (painel) -->
+      <form id="pieceFormM" class="join w-full md:hidden" autocomplete="off" data-only="painel">
+        <input id="pieceInputM" class="input join-item flex-1" placeholder="Buscar peça nº" inputmode="numeric" aria-label="Número da peça">
+        <button class="btn join-item" type="submit">Buscar</button>
+      </form>
+    </header>
+
+    <main id="main" class="flex-1 px-4 lg:px-6 py-6 min-w-0">
+
+      <!-- ========== PAINEL OPERACIONAL (idêntico ao aprovado) ========== -->
+      <section data-view="painel" class="space-y-5">
+        <section aria-label="Resumo" class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="stats"></section>
+        <section class="flex flex-col gap-3" aria-label="Filtros">
+          <div class="flex gap-3 flex-1 flex-col sm:flex-row">
+            <label class="input input-lg w-full sm:w-64">
+              <svg class="w-5 h-5 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="q" type="search" inputmode="numeric" placeholder="Pedido nº" aria-label="Buscar por número do pedido">
+            </label>
+            <select id="client" class="select select-lg w-full sm:w-72" aria-label="Filtrar por cliente"></select>
+          </div>
+          <div id="chips" class="flex flex-nowrap sm:flex-wrap gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1" role="tablist" aria-label="Filtros rápidos"></div>
+        </section>
+        <div id="extraFilter"></div>
+        <section class="grid grid-cols-1 lg:grid-cols-[minmax(0,63fr)_minmax(0,37fr)] gap-5 items-start">
+          <div>
+            <div class="flex items-baseline justify-between mb-2 px-1">
+              <h2 class="text-lg font-bold">Fila de pedidos</h2>
+              <span id="count" class="text-sm text-muted"></span>
+            </div>
+            <ul id="queue" class="space-y-3" role="listbox" aria-label="Pedidos"></ul>
+          </div>
+          <aside class="hidden lg:block sticky top-28">
+            <div id="detail" class="card bg-base-100 border border-base-200 max-h-[calc(100vh-8rem)] overflow-y-auto"></div>
+          </aside>
+        </section>
+      </section>
+
+      <!-- ========== CLIENTES ========== -->
+      <section data-view="clientes" class="space-y-4" hidden>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <label class="input input-lg w-full sm:w-80">
+            <svg class="w-5 h-5 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="cQ" type="search" placeholder="Nome, cidade ou telefone" aria-label="Buscar cliente">
+          </label>
+          <select id="cTipo" class="select select-lg w-full sm:w-60" aria-label="Filtrar por tipo">
+            <option value="">Todos os tipos</option><option value="individual">Pessoa física</option><option value="organisation">Organização</option>
+          </select>
+          <span id="cCount" class="text-sm text-muted sm:ml-auto self-center"></span>
+        </div>
+        <div class="card bg-base-100 border border-base-200">
+          <table class="table table-lg">
+            <thead><tr class="text-sm text-muted"><th>Cliente</th><th class="hidden md:table-cell">Tipo</th><th class="hidden lg:table-cell">Contato</th><th class="hidden md:table-cell">Cidade</th><th class="hidden sm:table-cell text-right">Pedidos</th><th class="w-14"><span class="sr-only">Ações</span></th></tr></thead>
+            <tbody id="cBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== PEDIDOS ========== -->
+      <section data-view="pedidos" class="space-y-4" hidden>
+        <div id="pTabs" role="tablist" class="tabs tabs-box bg-base-100 border border-base-200 w-full sm:w-fit grid grid-cols-3 sm:flex sm:flex-nowrap"></div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <label class="input input-lg w-full sm:w-80">
+            <svg class="w-5 h-5 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="pQ" type="search" placeholder="Nº do pedido ou cliente" aria-label="Buscar pedido">
+          </label>
+          <select id="pPrio" class="select select-lg w-full sm:w-52" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option><option>Máxima</option><option>Urgente</option><option>Alta</option><option>Normal</option></select>
+          <select id="pCli" class="select select-lg w-full sm:w-64" aria-label="Filtrar por cliente"></select>
+        </div>
+        <div class="card bg-base-100 border border-base-200 overflow-hidden">
+          <table class="table table-lg">
+            <thead><tr class="text-sm text-muted"><th class="pl-6">Pedido</th><th class="hidden md:table-cell">Cliente</th><th class="hidden sm:table-cell">Prioridade</th><th class="hidden sm:table-cell">Fase</th><th class="w-10"></th></tr></thead>
+            <tbody id="pBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== PLANEJAMENTO ========== -->
+      <section data-view="planejamento" class="space-y-4" hidden>
+        <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
+          <h2 class="text-lg font-bold">Fila de produção</h2>
+          <span id="plCount" class="text-sm text-muted"></span>
+        </div>
+        <div id="plList" class="space-y-4"></div>
+      </section>
+
+      <!-- ========== PRODUÇÃO ========== -->
+      <section data-view="producao" class="space-y-6" hidden>
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_23rem] items-start">
+          <section id="prOpen" aria-label="Produção aberta"></section>
+          <section id="prQueue" aria-label="Fila aguardando corte"></section>
+        </div>
+        <section id="prLast" aria-label="Últimas produções"></section>
+      </section>
+
+      <!-- ========== EXCEDENTES ========== -->
+      <section data-view="excedentes" class="space-y-4" hidden>
+        <form id="xForm" class="card bg-base-100 border border-base-200 p-4 sm:p-5 gap-4" autocomplete="off" onsubmit="return false">
+          <div class="flex flex-wrap items-center gap-3">
+            <h2 class="text-lg font-bold mr-auto">Buscar por medidas <span class="text-muted font-normal text-base">(mm)</span></h2>
+            <div class="join" role="group" aria-label="Modo de busca" id="xMode"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3" id="xFields"></div>
+          <div class="flex flex-wrap items-center gap-3 text-sm text-muted">
+            <span id="xHint"></span>
+            <button type="button" class="btn btn-ghost btn-sm ml-auto" id="xClear">Limpar busca</button>
+          </div>
+        </form>
+        <div class="flex items-baseline justify-between px-1"><h2 class="text-lg font-bold">Excedentes disponíveis</h2><span id="xCount" class="text-sm text-muted"></span></div>
+        <div id="xList" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3"></div>
+      </section>
+
+      <!-- ========== CONFERÊNCIA ========== -->
+      <section data-view="conferencia" hidden>
+        <div class="max-w-xl mx-auto space-y-5" id="cfWrap">
+          <div id="cfBanner"></div>
+          <form id="cfForm" class="card bg-base-100 border border-base-200 p-5 gap-3" autocomplete="off">
+            <label for="cfInput" class="text-lg font-bold">Número da peça</label>
+            <div class="flex gap-3">
+              <input id="cfInput" class="input input-xl flex-1 min-w-0 text-3xl font-bold tabular-nums h-16" inputmode="numeric" placeholder="Ex.: 10420" aria-describedby="cfErr">
+              <button class="btn btn-primary btn-xl h-16 px-6" type="submit">Buscar</button>
+            </div>
+            <p id="cfErr" class="text-error font-medium text-base" hidden></p>
+            <div id="cfQuick" class="text-sm text-muted"></div>
+          </form>
+          <div id="cfCard"></div>
+          <div id="cfLast"></div>
+        </div>
+      </section>
+
+      <!-- ========== FUNCIONÁRIOS ========== -->
+      <section data-view="funcionarios" class="space-y-4" hidden>
+        <div class="flex items-baseline justify-between px-1"><h2 class="text-lg font-bold">Usuários do sistema</h2><span id="uCount" class="text-sm text-muted"></span></div>
+        <div class="card bg-base-100 border border-base-200 overflow-hidden">
+          <table class="table table-lg">
+            <thead><tr class="text-sm text-muted"><th>Identificação</th><th class="hidden sm:table-cell">Perfil</th><th class="hidden md:table-cell">Situação</th><th class="text-center">Ativo</th><th class="w-14"><span class="sr-only">Editar</span></th></tr></thead>
+            <tbody id="uBody"></tbody>
+          </table>
+        </div>
+        <p class="text-sm text-muted px-1">Admin acessa tudo, inclusive Administração. Operador acessa as telas de Operação.</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="drawer-side z-30">
+    <label for="nav" class="drawer-overlay" aria-label="Fechar menu"></label>
+    <nav class="bg-sidebar text-[#fefdfc] w-60 min-h-full flex flex-col">
+      <div class="px-6 py-6 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-secondary text-sidebar grid place-items-center font-bold text-lg">C</div>
+        <div><div class="font-bold text-lg leading-tight">Crettyard</div><div class="text-xs opacity-70">Controle de produção</div></div>
+      </div>
+      <ul class="menu w-full px-3 gap-1 text-base" id="menu"></ul>
+      <div class="mt-auto m-3 p-4 rounded-lg border border-white/15 text-sm space-y-3">
+        <div class="text-[11px] uppercase tracking-wide opacity-60">Protótipo · dados fictícios</div>
+        <a href="#/login" class="link link-hover block opacity-90">Ver tela de Login</a>
+        <div class="sm:hidden flex items-center gap-3 pt-1"><div class="avatar avatar-placeholder"><div class="bg-secondary text-secondary-content w-9 rounded-full"><span class="font-bold text-sm" data-user-initials>MS</span></div></div><div class="leading-tight flex-1 min-w-0"><div class="font-medium truncate" data-user-name>marta.souza</div><div class="text-xs opacity-70" data-user-role>Admin</div></div><button class="btn btn-sm btn-ghost text-[#fefdfc] border-white/25" data-act-global="sair">Sair</button></div>
+        <div class="md:hidden space-y-1"><div class="text-xs opacity-60">Perfil do protótipo</div><div class="join" data-role-toggle data-dark></div></div>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<!-- ========== LOGIN ========== -->
+<div id="login" class="fixed inset-0 z-40 bg-canvas overflow-y-auto" hidden>
+  <div class="min-h-full grid place-items-center p-4">
+    <form id="loginForm" class="card bg-base-100 border border-base-200 w-full max-w-md p-6 sm:p-8 gap-5" autocomplete="off" novalidate>
+      <div class="text-center space-y-1">
+        <div class="text-4xl font-bold tracking-tight text-primary">crettyard <span class="font-normal">stone</span></div>
+        <div class="text-muted">Controle de produção</div>
+      </div>
+      <div id="loginErr" role="alert" class="alert border-0 py-3 text-base" style="background:#fee4e2;color:#b42318" hidden></div>
+      <label class="flex flex-col gap-1.5"><span class="font-medium text-base">Identificação</span>
+        <input id="lgUser" class="input input-xl w-full" placeholder="ex.: marta.souza" autocapitalize="none"></label>
+      <label class="flex flex-col gap-1.5"><span class="font-medium text-base">Senha</span>
+        <input id="lgPass" type="password" class="input input-xl w-full" placeholder="Sua senha">
+        <span id="lgPassErr" class="text-error text-sm font-medium" hidden></span></label>
+      <button class="btn btn-primary btn-xl w-full h-16 text-lg" type="submit">Entrar</button>
+      <p class="text-sm text-muted text-center">Protótipo: qualquer usuário ativo com senha <b>1234</b>. Outra senha mostra o erro.</p>
+    </form>
+  </div>
+</div>
+
+<!-- Dashboard: mobile detail bottom sheet (original) -->
+<dialog id="sheet" class="modal modal-bottom">
+  <div class="modal-box p-0 max-h-[88vh] bg-base-100">
+    <div class="sticky top-0 bg-base-100 z-10 flex justify-center pt-2 pb-1"><div class="w-12 h-1.5 rounded-full bg-base-200"></div></div>
+    <form method="dialog" class="absolute right-3 top-3 z-20"><button class="btn btn-ghost btn-circle" aria-label="Fechar">✕</button></form>
+    <div id="sheetBody"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<!-- Detail drawer (right on desktop, bottom sheet on small screens) -->
+<dialog id="panel" class="modal modal-bottom">
+  <div class="modal-box p-0 flex flex-col max-h-[90vh] bg-base-100">
+    <div class="lg:hidden flex justify-center pt-2"><div class="w-12 h-1.5 rounded-full bg-base-200"></div></div>
+    <div class="flex items-center gap-2 px-5 pt-3 lg:pt-4 pb-2">
+      <div id="panelKicker" class="text-sm text-muted flex-1"></div>
+      <form method="dialog"><button class="btn btn-ghost btn-circle" aria-label="Fechar">✕</button></form>
+    </div>
+    <div id="panelBody" class="flex-1 overflow-y-auto px-5 pb-5"></div>
+    <div id="panelFoot" class="border-t border-base-200 px-5 py-4 flex flex-wrap gap-3 bg-base-100 empty:hidden"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<!-- Generic create/edit modal (bottom sheet on mobile) -->
+<dialog id="m" class="modal modal-bottom sm:modal-middle">
+  <div id="mBox" class="modal-box p-0 flex flex-col max-h-[92vh] w-full">
+    <div class="flex items-start gap-3 px-5 sm:px-6 pt-5 pb-3 border-b border-base-200">
+      <h3 id="mTitle" class="text-xl font-bold flex-1"></h3>
+      <button class="btn btn-ghost btn-circle btn-sm -mt-1" data-act="close" aria-label="Fechar">✕</button>
+    </div>
+    <div id="mBody" class="flex-1 overflow-y-auto px-5 sm:px-6 py-5"></div>
+    <div id="mFoot" class="sticky bottom-0 bg-base-100 border-t border-base-200 px-5 sm:px-6 py-4 flex gap-3 justify-end"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<!-- Confirmation modal -->
+<dialog id="m2" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box p-0 flex flex-col max-h-[92vh] sm:max-w-md">
+    <div class="px-6 pt-6 pb-2"><h3 id="m2Title" class="text-xl font-bold"></h3></div>
+    <div id="m2Body" class="px-6 pb-5 text-base"></div>
+    <div class="sticky bottom-0 bg-base-100 border-t border-base-200 px-6 py-4 flex gap-3 justify-end">
+      <button class="btn btn-ghost btn-lg px-4" data-m2="no">Voltar</button>
+      <button class="btn btn-lg flex-1 sm:flex-none" id="m2Ok" data-m2="ok">Confirmar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<div id="toast" popover="manual" class="toast toast-end toast-bottom"></div>
+<script>
+/* =====================================================================
+   Protótipo navegável · dados fictícios compartilhados entre as telas
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- Domain (do painel aprovado) ---------- */
+const STAGES = [
+  {k:'c', label:'Corte inicial', short:'Corte', text:'#475467', bg:'#f2f4f7', fill:'#667085'},
+  {k:'r', label:'Refinamento',   short:'Ref.',  text:'#175cd3', bg:'#d1e0ff', fill:'#175cd3'},
+  {k:'a', label:'Acabamento',    short:'Acab.', text:'#613b1d', bg:'#e7d7c8', fill:'#b58759'},
+  {k:'f', label:'Conferência',   short:'Conf.', text:'#027a48', bg:'#d1fadf', fill:'#027a48'},
+  {k:'x', label:'Recorte',       short:'Recorte', text:'#b42318', bg:'#fee4e2', fill:'#b42318'},
+];
+const STAGE_BY = Object.fromEntries(STAGES.map(s=>[s.k,s]));
+STAGE_BY.k = {k:'k', label:'Concluída', short:'Concl.', text:'#027a48', bg:'#d1fadf'};
+
+const PRIO = {
+  'Máxima': {rank:0, color:'#b42318', soft:'#fee4e2'},
+  'Urgente':{rank:1, color:'#c4320a', soft:'#ffead5'},
+  'Alta':   {rank:2, color:'#a15c07', soft:'#fef0c7'},
+  'Normal': {rank:3, color:'#667085', soft:'#f2f4f7'},
+};
+const PRIO_DESC = {Normal:'Fila padrão', Alta:'Antecipa na fila', Urgente:'Prazo curto', 'Máxima':'Exclusiva para clientes VIP'};
+const PHASE = {
+  'sem itens':          {label:'Sem itens',            color:'#667085', soft:'#f2f4f7'},
+  'aguardando produção':{label:'Aguardando produção',  color:'#a15c07', soft:'#fef0c7'},
+  'em produção':        {label:'Em produção',          color:'#175cd3', soft:'#d1e0ff'},
+  'embalagem':          {label:'Embalagem',            color:'#613b1d', soft:'#e7d7c8'},
+  'expedição':          {label:'Expedição',            color:'#027a48', soft:'#d1fadf'},
+  'entregue':           {label:'Entregue',             color:'#272626', soft:'#eceae8'},
+  'cancelado':          {label:'Cancelado',            color:'#5e5c5b', soft:'#f2f4f7'},
+};
+
+let pieceSeq = 10401;
+const it = (qty,h,w,l,stages,desc) => ({qty,h,w,l,desc,pieces:[...stages].map(s=>({n:pieceSeq++, stage:s}))});
+const ORDERS = [
+  {n:2483, client:'All Stone', prio:'Máxima', phase:'em produção', stone:'Granito Preto São Gabriel', due:'21/10', items:[
+    it(2,20,600,2400,'aa','Bancada cozinha'), it(2,20,150,2400,'ax','Saia frontal'), it(1,20,900,900,'','Ilha – tampo')]},
+  {n:2490, client:'All Stone', prio:'Máxima', phase:'em produção', stone:'Quartzito Taj Mahal', due:'24/10', items:[
+    it(6,30,400,1200,'ccrrrr','Degraus'), it(3,30,300,1200,'ccc','Espelhos de degrau')]},
+  {n:2478, client:'All Stone', prio:'Máxima', phase:'expedição', mode:'entrega', stone:'Mármore Carrara', due:'19/10', items:[
+    it(4,20,500,1600,'kkkk','Lavatórios'), it(2,20,100,1600,'kk','Rodabancas')]},
+  {n:2486, client:'Construtora Horizonte', prio:'Urgente', phase:'em produção', stone:'Granito Cinza Corumbá', due:'22/10', items:[
+    it(10,20,550,1800,'rrrraaaaff','Bancadas apto. tipo'), it(2,20,550,2200,'xa','Bancada cobertura')]},
+  {n:2492, client:'Marmoraria Bela Vista', prio:'Urgente', phase:'aguardando produção', stone:'Granito Branco Itaúnas', due:'28/10', items:[
+    it(3,20,600,2000,'','Bancadas'), it(1,20,400,800,'','Prateleira')]},
+  {n:2480, client:'Arq. Helena Duarte', prio:'Urgente', phase:'embalagem', stone:'Travertino Romano', due:'20/10', items:[
+    it(3,30,450,1500,'kkk','Tampos de mesa'), it(1,30,450,450,'k','Tampo lateral')]},
+  {n:2484, client:'Granitos Serra Azul', prio:'Alta', phase:'em produção', stone:'Granito Verde Ubatuba', due:'25/10', items:[
+    it(8,20,300,600,'cccccc','Soleiras')]},
+  {n:2488, client:'Studio Pedra & Forma', prio:'Alta', phase:'em produção', stone:'Quartzo Branco Prime', due:'23/10', items:[
+    it(2,20,600,3000,'ff','Bancadas ilha'), it(2,20,200,3000,'af','Frontões')]},
+  {n:2475, client:'Residencial Ipê', prio:'Alta', phase:'expedição', mode:'retirada', stone:'Granito Preto Absoluto', due:'18/10', items:[
+    it(12,20,150,1000,'kkkkkkkkkkkk','Peitoris')]},
+  {n:2495, client:'Casa Nobre Interiores', prio:'Normal', phase:'sem itens', stone:'—', due:'—', items:[]},
+  {n:2479, client:'Marmoraria Bela Vista', prio:'Normal', phase:'em produção', stone:'Mármore Travertino', due:'27/10', items:[
+    it(5,20,500,1400,'aaakk','Nichos de banheiro')]},
+  {n:2482, client:'Construtora Horizonte', prio:'Normal', phase:'embalagem', stone:'Granito Cinza Andorinha', due:'26/10', items:[
+    it(6,20,250,1200,'kkkkkk','Soleiras de porta')]},
+  {n:2489, client:'Granitos Serra Azul', prio:'Normal', phase:'em produção', stone:'Granito Amarelo Ornamental', due:'30/10', items:[
+    it(4,30,400,1000,'rrcc','Degraus'), it(1,30,400,1600,'x','Patamar')]},
+  {n:2493, client:'Residencial Ipê', prio:'Normal', phase:'aguardando produção', stone:'Granito Preto Absoluto', due:'04/11', items:[
+    it(8,20,150,1200,'','Peitoris bloco B')]},
+];
+/* Pedidos já concluídos (aba Concluídos) – peças com numeração anterior */
+let oldSeq = 10301;
+const itOld = (qty,h,w,l,stages,desc) => ({qty,h,w,l,desc,pieces:[...stages].map(s=>({n:oldSeq++, stage:s}))});
+ORDERS.push(
+  {n:2470, client:'Aoife Byrne', prio:'Normal', phase:'entregue', mode:'retirada', stone:'Mármore Branco Paraná', due:'10/10', created:'2026-09-22T10:00', deliveredAt:'2026-10-10T15:20', deliveredBy:'joao.pereira', items:[itOld(2,20,500,1200,'kk','Tampos de lavatório')]},
+  {n:2471, client:'Casa Nobre Interiores', prio:'Normal', phase:'cancelado', stone:'Granito Branco Dallas', due:'—', created:'2026-09-24T09:30', cancelledAt:'2026-09-29T14:00', cancelledBy:'marta.souza', cancelReason:'Cliente desistiu do projeto antes do início da produção.', items:[{qty:3,h:20,w:400,l:1000,desc:'Prateleiras',pieces:[]}]},
+  {n:2472, client:'All Stone', prio:'Máxima', phase:'entregue', mode:'entrega', stone:'Granito Preto São Gabriel', due:'14/10', created:'2026-09-25T08:45', deliveredAt:'2026-10-14T11:00', deliveredBy:'carlos.lima', items:[itOld(4,20,600,2200,'kkkk','Bancadas'), itOld(4,20,120,2200,'kkkk','Saias')]},
+  {n:2474, client:'Construtora Horizonte', prio:'Alta', phase:'entregue', mode:'entrega', stone:'Granito Cinza Andorinha', due:'16/10', created:'2026-09-28T13:10', deliveredAt:'2026-10-16T09:30', deliveredBy:'joao.pereira', items:[itOld(6,20,200,900,'kkkkkk','Soleiras')]},
+);
+const CREATED = {2483:'2026-10-06T09:20',2490:'2026-10-09T10:05',2478:'2026-10-02T14:10',2486:'2026-10-05T08:40',2492:'2026-10-14T16:30',2480:'2026-10-03T11:00',2484:'2026-10-08T15:15',2488:'2026-10-07T09:50',2475:'2026-10-01T10:30',2495:'2026-10-17T17:05',2479:'2026-10-04T13:20',2482:'2026-10-04T16:45',2489:'2026-10-10T08:55',2493:'2026-10-15T10:10'};
+const CREATED_BY = ['marta.souza','marta.souza','joao.pereira'];
+ORDERS.forEach((o,i)=>{ o.created ??= CREATED[o.n]; o.createdBy ??= CREATED_BY[i%3];
+  o.items.forEach(it=>it.pieces.forEach(p=>{ p.h=it.h; p.w=it.w; p.l=it.l; })); });
+
+/* ---------- Clientes ---------- */
+const CLIENTS = [
+  {id:1, name:'All Stone', type:'organisation', vip:true, active:true, email:'compras@allstone.ie', phones:['+353 1 482 3100','+353 87 214 5501'], reps:[{name:'Declan Walsh', role:'Compras', phone:'+353 87 214 5501'}], addr:'Unit 4, Ballymount Industrial Estate', city:'Dublin 12', county:'Dublin', eircode:'D12 X7K3', fiscal:{cro:'612345', vat:'IE3612345KH'}},
+  {id:2, name:'Construtora Horizonte', type:'organisation', vip:false, active:true, email:'obras@horizonte.ie', phones:['+353 21 455 7800'], reps:[{name:'Siobhán Kelly', role:'Engenheira de obra', phone:'+353 86 330 1192'},{name:'Rafael Moura', role:'Compras', phone:'+353 85 772 4410'}], addr:'12 Lapps Quay', city:'Cork', county:'Cork', eircode:'T12 RX60', fiscal:{cro:'598812', vat:'IE9598812P', trn:''}},
+  {id:3, name:'Marmoraria Bela Vista', type:'organisation', vip:false, active:true, email:'contato@belavista.ie', phones:['+353 91 562 340'], reps:[{name:'Paulo Mendes', role:'Sócio', phone:'+353 87 901 2233'}], addr:'Unit 9, Oranmore Business Park', city:'Galway', county:'Galway', eircode:'H91 K2C4', fiscal:{cro:'701455'}},
+  {id:4, name:'Arq. Helena Duarte', type:'individual', vip:true, active:true, email:'helena@hduarte.ie', phones:['+353 83 118 4067'], reps:[], addr:'27 Pembroke Road', city:'Dublin 4', county:'Dublin', eircode:'D04 V2N8', fiscal:{ppsn:'7654321TA'}},
+  {id:5, name:'Granitos Serra Azul', type:'organisation', vip:false, active:true, email:'pedidos@serraazul.ie', phones:['+353 61 410 990','+353 87 640 1180'], reps:[{name:'Niamh O\u2019Brien', role:'Atendimento', phone:'+353 87 640 1180'}], addr:'Raheen Business Park', city:'Limerick', county:'Limerick', eircode:'V94 E8T2', fiscal:{cro:'655120', vat:'IE6655120W', trn:'TRN-0042'}},
+  {id:6, name:'Studio Pedra & Forma', type:'organisation', vip:true, active:true, email:'studio@pedraforma.ie', phones:['+353 56 772 1408'], reps:[{name:'Ciara Doyle', role:'Designer', phone:'+353 86 225 7781'}], addr:'3 Parliament Street', city:'Kilkenny', county:'Kilkenny', eircode:'R95 A6P1', fiscal:{vat:'IE4410982T'}},
+  {id:7, name:'Residencial Ipê', type:'organisation', vip:false, active:true, email:'obra@residencialipe.ie', phones:['+353 51 870 320'], reps:[{name:'Marcos Teixeira', role:'Mestre de obras', phone:'+353 85 113 9020'}], addr:'Cork Road', city:'Waterford', county:'Waterford', eircode:'X91 H3K7', fiscal:{cro:'689001'}},
+  {id:8, name:'Casa Nobre Interiores', type:'organisation', vip:false, active:true, email:'ola@casanobre.ie', phones:['+353 1 286 5544'], reps:[], addr:'Main Street', city:'Bray', county:'Wicklow', eircode:'A98 W2C5', fiscal:{}},
+  {id:9, name:'Aoife Byrne', type:'individual', vip:false, active:false, email:'aoife.byrne@mail.ie', phones:['+353 87 552 0391'], reps:[], addr:'14 Abbey Field', city:'Naas', county:'Kildare', eircode:'W91 P4X2', fiscal:{ppsn:'1234567FA'}},
+];
+const clientByName = n => CLIENTS.find(c=>c.name===n);
+const TYPE_LABEL = {individual:'Pessoa física', organisation:'Organização'};
+
+/* ---------- Funcionários (usuários) ---------- */
+const USERS = [
+  {id:1, ident:'marta.souza',  perfil:'Admin',    active:true,  pass:'1234'},
+  {id:2, ident:'joao.pereira', perfil:'Operador', active:true,  pass:'1234'},
+  {id:3, ident:'carlos.lima',  perfil:'Operador', active:true,  pass:'1234'},
+  {id:4, ident:'ana.ribeiro',  perfil:'Operador', active:false, pass:'1234'},
+];
+const session = {user:'marta.souza', role:'Admin'};
+
+/* ---------- Produções (matéria-prima = pedra bruta) ---------- */
+const PRODS = [
+  {id:'P-098', at:'2026-10-01T08:30', user:'ana.ribeiro',  order:2470, raw:[20,1600,2800]},
+  {id:'P-099', at:'2026-10-03T09:10', user:'ana.ribeiro',  order:2472, raw:[20,1900,3100]},
+  {id:'P-100', at:'2026-10-05T13:40', user:'carlos.lima',  order:2474, raw:[20,1500,2900]},
+  {id:'P-101', at:'2026-10-08T08:15', user:'joao.pereira', order:2475, raw:[20,1700,3000]},
+  {id:'P-102', at:'2026-10-09T10:20', user:'carlos.lima',  order:2478, raw:[20,1800,3200]},
+  {id:'P-103', at:'2026-10-10T14:00', user:'joao.pereira', order:2480, raw:[30,1600,2900]},
+  {id:'P-104', at:'2026-10-12T08:45', user:'carlos.lima',  order:2482, raw:[20,1650,2900]},
+  {id:'P-105', at:'2026-10-13T09:30', user:'joao.pereira', order:2479, raw:[20,1750,3000]},
+  {id:'P-106', at:'2026-10-14T08:05', user:'joao.pereira', order:2486, raw:[20,1900,3200]},
+  {id:'P-107', at:'2026-10-15T10:40', user:'carlos.lima',  order:2483, raw:[20,1850,3100]},
+  {id:'P-108', at:'2026-10-16T09:00', user:'joao.pereira', order:2488, raw:[20,1600,3200]},
+  {id:'P-109', at:'2026-10-16T14:20', user:'carlos.lima',  order:2484, raw:[20,1200,2800]},
+  {id:'P-110', at:'2026-10-17T10:05', user:'joao.pereira', order:2489, raw:[30,1400,2900]},
+  {id:'P-111', at:'2026-10-17T15:30', user:'carlos.lima',  order:2490, raw:[30,1600,3100]},
+  {id:'P-112', at:'2026-10-18T08:10', user:'joao.pereira', order:2490, raw:[30,1650,3200], open:true},
+];
+const prodById = id => PRODS.find(p=>p.id===id);
+const PROD_OF = {2470:'P-098',2472:'P-099',2474:'P-100',2475:'P-101',2478:'P-102',2480:'P-103',2482:'P-104',2479:'P-105',2486:'P-106',2483:'P-107',2488:'P-108',2484:'P-109',2489:'P-110'};
+ORDERS.forEach(o=>o.items.forEach(i=>i.pieces.forEach(p=>{ p.prod = o.n===2490 ? (p.stage==='c'?'P-112':'P-111') : PROD_OF[o.n]; })));
+
+/* ---------- Excedentes (soma = 23, como no painel) ---------- */
+const SURPLUS = [
+  {id:'E-041', h:20, w:600, l:1200, qty:4, prod:'P-109', order:2484},
+  {id:'E-040', h:20, w:300, l:600,  qty:3, prod:'P-109', order:2484},
+  {id:'E-039', h:30, w:400, l:900,  qty:2, prod:'P-111', order:2490},
+  {id:'E-038', h:20, w:550, l:700,  qty:2, prod:'P-106', order:2486},
+  {id:'E-037', h:20, w:150, l:800,  qty:5, prod:'P-101', order:2475},
+  {id:'E-036', h:30, w:450, l:600,  qty:1, prod:'P-103', order:2480},
+  {id:'E-035', h:20, w:500, l:900,  qty:2, prod:'P-102', order:2478},
+  {id:'E-034', h:20, w:250, l:500,  qty:1, prod:'P-104', order:2482},
+  {id:'E-033', h:20, w:600, l:1600, qty:2, prod:'P-107', order:2483},
+  {id:'E-032', h:30, w:300, l:1100, qty:1, prod:'P-110', order:2489},
+];
+SURPLUS.forEach(s=>{ const p=prodById(s.prod); s.at = p ? p.at : new Date().toISOString(); s.user = p ? p.user : session.user; });
+const surplusTotal = () => SURPLUS.reduce((a,s)=>a+s.qty,0);
+
+/* ---------- Helpers ---------- */
+const pl = (n,s,p) => n===1?s:p;
+const mm = i => `${i.h} × ${i.w} × ${i.l}`;
+const toD = s => s instanceof Date ? s : new Date(s);
+const fmtDate = s => toD(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+const fmtTime = s => toD(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+const fmtDT = s => `${fmtDate(s)} às ${fmtTime(s)}`;
+const nowISO = () => new Date().toISOString();
+const isActive = o => o.phase!=='entregue' && o.phase!=='cancelado';
+const ACTIVE = () => ORDERS.filter(isActive);
+const orderByN = n => ORDERS.find(o=>o.n===+n);
+function pieceCtx(n){ n=+n; for(const o of ORDERS) for(let idx=0; idx<o.items.length; idx++){ const i=o.items[idx]; for(const p of i.pieces) if(p.n===n) return {o,i,idx,p}; } return null; }
+const allPieces = () => ORDERS.flatMap(o=>o.items.flatMap((i,idx)=>i.pieces.map(p=>({o,i,idx,p}))));
+let PIECE_MAX = null;
+const nextPieceN = () => { if(PIECE_MAX===null) PIECE_MAX = Math.max(...allPieces().map(x=>x.p.n), 10400); return ++PIECE_MAX; };
+const initials = id => id.split(/[._ ]/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
+const ICON = {
+  plus:'<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  dots:'<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  chev:'<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
+  check:'<svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>',
+  x:'<svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  trash:'<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  star:'<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>',
+};
+
+/* ---------- Derived (painel) ---------- */
+function stats(o){
+  const c = {c:0,r:0,a:0,f:0,x:0,k:0}; let total=0, linked=0, unlinkedItems=0;
+  o.items.forEach(i=>{ total+=i.qty; linked+=i.pieces.length; if(!i.pieces.length) unlinkedItems++; i.pieces.forEach(p=>c[p.stage]++); });
+  return {c,total,linked,unlinked: total-linked, unlinkedItems, done:c.k, attention:c.x>0};
+}
+function situation(o){
+  const s = stats(o);
+  if(o.phase==='entregue') return `Entregue (${o.mode}) em ${fmtDate(o.deliveredAt)}.`;
+  if(o.phase==='cancelado') return `Cancelado em ${fmtDate(o.cancelledAt)}.`;
+  if(o.phase==='sem itens') return 'Pedido sem itens cadastrados. Aguardando o atendimento lançar as medidas.';
+  if(o.phase==='expedição') return `Pronto: ${s.total} ${pl(s.total,'peça conferida','peças conferidas')}, aguardando ${o.mode==='retirada'?'retirada pelo cliente':'entrega'}.`;
+  if(o.phase==='embalagem') return `${s.total} ${pl(s.total,'peça conferida','peças conferidas')}, em embalagem.`;
+  if(o.phase==='aguardando produção') return `Produção ainda não iniciada. ${o.items.length} ${pl(o.items.length,'item sem peça vinculada','itens sem peça vinculada')} (${s.total} ${pl(s.total,'peça','peças')}).`;
+  const parts=[];
+  const phr = {c:['no corte','no corte'], r:['no refinamento','no refinamento'], a:['no acabamento','no acabamento'], f:['em conferência','em conferência'], x:['em recorte','em recorte'], k:['concluída','concluídas']};
+  ['a','r','c','f','x','k'].forEach(k=>{ const n=s.c[k]; if(n) parts.push(`${n} ${parts.length?'':pl(n,'peça ','peças ')}${phr[k][n===1?0:1]}`.replace('  ',' ')); });
+  let t = parts.length ? parts.join(', ').replace(/, ([^,]*)$/, parts.length>1?' e $1':', $1') + '.' : '';
+  if(t) t = t.charAt(0).toUpperCase()+t.slice(1);
+  if(s.unlinkedItems) t += ` ${s.unlinkedItems} ${pl(s.unlinkedItems,'item sem peça vinculada','itens sem peça vinculada')}.`;
+  else if(s.unlinked) t += ` ${s.unlinked} ${pl(s.unlinked,'peça ainda não vinculada','peças ainda não vinculadas')}.`;
+  return t.trim();
+}
+function alerts(o){
+  const a=[];
+  o.items.forEach((i,idx)=>i.pieces.forEach(p=>{ if(p.stage==='x') a.push({lvl:'attention', text:`Peça nº ${p.n} em recorte`, sub:`Item ${idx+1} · ${i.desc} · ${mm(i)}`}); }));
+  o.items.forEach((i,idx)=>{ if(!i.pieces.length && o.phase==='em produção') a.push({lvl:'notice', text:`Item ${idx+1} sem peça vinculada`, sub:`${i.desc} · ${i.qty}× ${mm(i)}`});
+    else if(i.pieces.length && i.pieces.length<i.qty) a.push({lvl:'notice', text:`${i.qty-i.pieces.length} de ${i.qty} peças do item ${idx+1} sem vínculo`, sub:`${i.desc} · ${mm(i)}`}); });
+  return a;
+}
+const sorted = () => [...ACTIVE()].sort((a,b)=>PRIO[a.prio].rank-PRIO[b.prio].rank || a.n-b.n);
+
+/* Fase do pedido acompanha as peças */
+function updatePhase(o){
+  if(!['aguardando produção','em produção','sem itens'].includes(o.phase)) return;
+  const s = stats(o);
+  if(!o.items.length){ o.phase='sem itens'; return; }
+  if(s.linked===0){ o.phase='aguardando produção'; return; }
+  if(s.unlinked===0 && s.c.k===s.total){ o.phase='embalagem'; addOrderEvent(o,'Embalagem'); toast(`Pedido #${o.n}: todas as peças conferidas. Fase: Embalagem.`); return; }
+  o.phase='em produção';
+}
+function addOrderEvent(o, title){ o.items.forEach(i=>i.pieces.forEach(p=>histAdd(p, title, title==='Embalagem'?'Pedido preparado para saída':'' ))); }
+
+/* ---------- Histórico da peça (gerado a partir da etapa atual) ---------- */
+const ORDER_STAGES = ['c','r','a','f'];
+function hist(p){
+  if(p.hist) return p.hist;
+  const ctx = pieceCtx(p.n), pr = prodById(p.prod), o = ctx?.o;
+  const t0 = toD(pr ? pr.at : (o?.created || nowISO())).getTime() + (p.n%5)*60000;
+  const reached = p.stage==='c'?1 : p.stage==='r'?2 : p.stage==='a'?3 : 4;
+  const extra = (p.stage==='k'||p.stage==='x') ? 1 : 0;
+  const deliv = o?.deliveredAt ? toD(o.deliveredAt).getTime() : null;
+  const cap = (deliv ? deliv - 6*3600e3 : Date.now() - 25*60000);
+  const steps = reached + extra + 1;
+  const step = Math.max(12*60000, Math.min(6*3600e3, (cap - t0) / steps));
+  const ops = ['joao.pereira','carlos.lima'];
+  const ev = []; let t = t0;
+  const push = (title, desc, user) => ev.push({at:new Date(t).toISOString(), title, desc, user});
+  push('Criação da peça', `Resultado da produção ${p.prod||'—'}`, pr?.user || 'joao.pereira');
+  t += 60000; push('Vínculo com a produção', pr ? `${pr.id} · pedra bruta ${pr.raw.join(' × ')} mm` : 'Registro manual', pr?.user || 'joao.pereira');
+  if(ctx){ t += 60000; push('Vínculo com pedido/item', `#${o.n} · Item ${ctx.idx+1} · ${ctx.i.desc}`, pr?.user || 'joao.pereira'); }
+  t += 5*60000; push('Entrada em etapa', 'Corte inicial', pr?.user || 'joao.pereira');
+  for(let k=1;k<reached;k++){ t += step; const u = ops[(p.n+k)%2];
+    push('Conclusão de etapa', STAGE_BY[ORDER_STAGES[k-1]].label, u); t += 60000; push('Entrada em etapa', STAGE_BY[ORDER_STAGES[k]].label, u); }
+  if(p.stage==='k'){ t += step; push('Conclusão de etapa', 'Conferência conforme · medidas e condições finais verificadas', 'carlos.lima'); }
+  if(p.stage==='x'){ t += step; push('Retrabalho', 'Conferência não conforme · enviada para recorte', 'carlos.lima'); }
+  if(o && ['embalagem','expedição','entregue'].includes(o.phase)){ t += step/2; push('Embalagem/expedição', 'Pedido preparado para saída', 'joao.pereira'); }
+  if(o && o.phase==='entregue'){ t = toD(o.deliveredAt).getTime(); push('Entrega', `${o.mode==='retirada'?'Retirada pelo cliente':'Entrega ao cliente'}`, o.deliveredBy||'joao.pereira'); }
+  p.hist = ev; return ev;
+}
+function histAdd(p, title, desc){ hist(p).push({at:nowISO(), title, desc, user:session.user}); }
+
+/* ---------- Conferências recentes (semente) ---------- */
+const CONFS = [];
+(function seedConfs(){
+  const o83 = orderByN(2483), o82 = orderByN(2482);
+  const px = o83.items[1].pieces.find(p=>p.stage==='x');
+  CONFS.push({n:px.n, ok:false, dec:'Recorte', at:'2026-10-18T09:40', user:'carlos.lima'});
+  CONFS.push({n:o82.items[0].pieces[5].n, ok:true, at:'2026-10-18T08:55', user:'carlos.lima'});
+  CONFS.push({n:o82.items[0].pieces[4].n, ok:true, at:'2026-10-18T08:48', user:'carlos.lima'});
+})();
+
+/* =====================================================================
+   PAINEL OPERACIONAL (código original, agora sobre os dados compartilhados)
+   ===================================================================== */
+const state = {q:'', client:'', chip:'todos', extra:null, sel:null};
+const CHIPS = [
+  {k:'todos', label:'Todos', test:()=>true},
+  {k:'prio', label:'Prioritários', test:o=>o.prio==='Máxima'||o.prio==='Urgente'},
+  {k:'atencao', label:'Com atenção', test:o=>stats(o).attention},
+  {k:'saida', label:'Aguardando saída', test:o=>o.phase==='expedição'},
+];
+const EXTRA = { producao:{label:'Com peças em corte, refino ou acabamento', test:o=>{const c=stats(o).c; return c.c+c.r+c.a>0;}} };
+function baseFiltered(){
+  return sorted().filter(o => (!state.q || String(o.n).includes(state.q.replace(/\D/g,''))) && (!state.client || o.client===state.client));
+}
+function filtered(){
+  const chip = CHIPS.find(c=>c.k===state.chip);
+  return baseFiltered().filter(chip.test).filter(o=>!state.extra || EXTRA[state.extra].test(o));
+}
+function renderStats(){
+  const act = ACTIVE();
+  const open = act.length, max = act.filter(o=>o.prio==='Máxima').length;
+  let c=0,r=0,a=0; act.forEach(o=>{const s=stats(o).c; c+=s.c; r+=s.r; a+=s.a;});
+  const wait = act.filter(o=>o.phase==='expedição');
+  const ret = wait.filter(o=>o.mode==='retirada').length;
+  const cards = [
+    {k:'todos', title:'Pedidos não entregues', value:open, desc:`<span class="font-bold text-attention">${max} Máxima</span> · All Stone`},
+    {k:'producao', title:'Peças em corte / refino / acab.', value:c+r+a, desc:`${c} corte · ${r} refino · ${a} acab.`},
+    {k:'saida', title:'Aguardando retirada / entrega', value:wait.length, desc:`${ret} retirada · ${wait.length-ret} entrega`},
+    {k:'exc', title:'Excedentes disponíveis', value:surplusTotal(), desc:'Consultar em Excedentes'},
+  ];
+  const active = state.extra || state.chip;
+  $('#stats').innerHTML = cards.map(x=>`
+    <button class="stats bg-base-100 border ${active===x.k&&x.k!=='exc'?'border-primary ring-2 ring-[#613b1d]/30':'border-base-200'} text-left hover:border-base-300 transition-colors" data-stat="${x.k}" aria-pressed="${active===x.k}">
+      <div class="stat py-3 px-4">
+        <div class="stat-title text-muted text-sm whitespace-normal leading-snug">${x.title}</div>
+        <div class="stat-value text-3xl">${x.value}</div>
+        <div class="stat-desc text-muted text-sm whitespace-normal">${x.desc}</div>
+      </div></button>`).join('');
+}
+function renderDashClients(){
+  const clients = [...new Set(ACTIVE().map(o=>o.client))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  $('#client').innerHTML = `<option value="">Todos os clientes</option>` + clients.map(c=>`<option ${state.client===c?'selected':''}>${esc(c)}</option>`).join('');
+}
+function renderChips(){
+  const base = baseFiltered();
+  $('#chips').innerHTML = CHIPS.map(c=>{
+    const n = base.filter(c.test).length, on = state.chip===c.k;
+    return `<button role="tab" aria-selected="${on}" data-chip="${c.k}" class="btn sm:btn-lg rounded-full ${on?'btn-neutral':'btn-ghost bg-base-100 border-base-200'} gap-2 shrink-0">
+      ${c.k==='atencao'?'<span class="w-2.5 h-2.5 rounded-full bg-attention"></span>':''}${c.label}
+      <span class="badge ${on?'bg-base-100 text-base-content':'bg-base-200'} border-0 font-bold">${n}</span></button>`;
+  }).join('');
+  $('#extraFilter').innerHTML = state.extra ? `
+    <div class="flex items-center gap-2 text-sm"><span class="text-muted">Filtro do resumo:</span>
+      <button class="badge badge-lg bg-menu-active border-0 gap-2 py-3" data-clear-extra>${EXTRA[state.extra].label} <span aria-hidden="true">✕</span></button></div>` : '';
+}
+const badge = (label,color,soft,extra='') => `<span class="badge badge-lg border-0 font-medium whitespace-nowrap ${extra}" style="background:${soft};color:${color}">${label}</span>`;
+const prioBadge = p => badge(p, PRIO[p].color, PRIO[p].soft, p==='Máxima'?'font-bold':'');
+const phaseBadge = o => badge(PHASE[o.phase].label + ((o.phase==='expedição'||o.phase==='entregue')&&o.mode?` · ${o.mode}`:''), PHASE[o.phase].color, PHASE[o.phase].soft);
+const stageBadge = (k, extra='') => { const st=STAGE_BY[k]; return `<span class="badge badge-lg border-0 font-medium whitespace-nowrap ${k==='x'?'font-bold':''} ${extra}" style="background:${st.bg};color:${st.text}">${st.label}</span>`; };
+const alertIcon = `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>`;
+
+function pipeline(o){
+  const s = stats(o);
+  return `<div class="grid grid-cols-5 gap-1 flex-1 min-w-0 w-full">` + STAGES.map(st=>{
+    const n = s.c[st.k], on = n>0;
+    return `<div class="tooltip tooltip-top" data-tip="${st.label}: ${n} ${pl(n,'peça','peças')}">
+      <div class="rounded-md px-1 py-1.5 text-center border ${on?'border-transparent':'border-base-200'}" style="${on?`background:${st.bg};color:${st.text}`:'color:#aba7a3'}">
+        <div class="text-[11px] uppercase sm:tracking-wide font-medium leading-none truncate">${st.short}</div>
+        <div class="text-lg font-bold leading-tight">${n}</div>
+      </div></div>`;
+  }).join('') + `</div>`;
+}
+function renderQueue(){
+  const list = filtered();
+  $('#count').textContent = `${list.length} ${pl(list.length,'pedido','pedidos')} · prioridade, depois nº`;
+  const ul = $('#queue');
+  if(!list.length){
+    ul.innerHTML = `<li class="card bg-base-100 border border-dashed border-base-300 py-14 px-6 text-center items-center">
+      <svg class="w-12 h-12 text-base-300 mb-3" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></svg>
+      <h3 class="text-xl font-bold">Tela vazia</h3>
+      <p class="text-muted mt-1 text-base">Nenhum pedido corresponde aos filtros aplicados.</p>
+      <button class="btn btn-outline mt-5" data-reset>Limpar filtros</button></li>`;
+    return;
+  }
+  ul.innerHTML = list.map(o=>{
+    const s = stats(o), sel = state.sel===o.n;
+    const pct = s.total ? Math.round(s.done/s.total*100) : 0;
+    return `<li><div role="option" tabindex="0" aria-selected="${sel}" data-order="${o.n}"
+      class="row-card card bg-base-100 border border-base-200 cursor-pointer px-5 py-4 gap-3" style="border-left:6px solid ${PRIO[o.prio].color}">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span class="text-2xl font-bold tabular-nums">#${o.n}</span>
+        <span class="text-lg font-medium truncate max-w-[16rem]">${esc(o.client)}</span>
+        <div class="flex flex-wrap gap-2 ml-auto items-center">
+          ${s.attention?`<span class="badge badge-lg border-0 gap-1 font-bold" style="background:#fee4e2;color:#b42318" title="Peça em recorte">${alertIcon}${s.c.x} recorte</span>`:''}
+          ${prioBadge(o.prio)} ${phaseBadge(o)}
+        </div>
+      </div>
+      ${o.items.length ? `<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        ${pipeline(o)}
+        <div class="shrink-0 w-full sm:w-24 flex sm:block items-center gap-3 sm:text-right">
+          <div class="text-base whitespace-nowrap"><span class="font-bold text-lg">${s.done}/${s.total}</span> peças</div>
+          <progress class="progress progress-success h-1.5 w-full" value="${pct}" max="100"></progress>
+        </div></div>` : ''}
+      <p class="text-base ${s.attention?'text-base-content':'text-muted'}">${situation(o)}</p>
+    </div></li>`;
+  }).join('');
+}
+function detailHTML(o){
+  if(!o) return `<div class="card-body items-center text-center py-16">
+      <svg class="w-14 h-14 text-base-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01"/></svg>
+      <h3 class="text-xl font-bold mt-2">Nenhum pedido selecionado</h3>
+      <p class="text-muted text-base">Toque em um pedido da fila para ver itens, peças e alertas.</p></div>`;
+  const s = stats(o), al = alerts(o);
+  const steps = [...STAGES.filter(x=>x.k!=='x'), STAGE_BY.k];
+  return `<div class="card-body gap-5 p-5">
+    <div>
+      <div class="text-sm text-muted">Pedido</div>
+      <div class="flex items-baseline gap-3 flex-wrap"><h2 class="text-3xl font-bold tabular-nums">#${o.n}</h2><span class="text-xl font-medium">${esc(o.client)}</span></div>
+      <div class="flex flex-wrap gap-2 mt-3">${prioBadge(o.prio)} ${phaseBadge(o)}</div>
+      <dl class="grid grid-cols-2 gap-3 mt-4 text-sm">
+        <div><dt class="text-muted">Material</dt><dd class="font-medium text-base">${esc(o.stone)}</dd></div>
+        <div><dt class="text-muted">Previsão</dt><dd class="font-medium text-base">${o.due}</dd></div>
+      </dl>
+    </div>
+    <div class="rounded-lg bg-canvas p-4">
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-1">Situação</div>
+      <p class="text-lg leading-snug">${situation(o)}</p>
+    </div>
+    ${al.length?`<div class="space-y-2">${al.map(a=>`
+      <div role="alert" class="alert items-start border-0 py-3" style="background:${a.lvl==='attention'?'#fee4e2':'#fef0c7'};color:${a.lvl==='attention'?'#b42318':'#a15c07'}">
+        ${alertIcon}<div><div class="font-bold text-base">${a.text}</div><div class="text-sm opacity-90">${a.sub}</div></div></div>`).join('')}</div>`:''}
+    ${o.items.length?`<div>
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-2">Etapas · ${s.linked} de ${s.total} peças vinculadas</div>
+      <ol class="grid grid-cols-5 relative" aria-label="Peças por etapa">
+        <span class="absolute left-[10%] right-[10%] top-[18px] h-1 bg-base-200 rounded" aria-hidden="true"></span>
+        ${steps.map(st=>{const n=s.c[st.k]; const on=n>0; return `<li class="relative flex flex-col items-center gap-1 text-center" title="${st.label}: ${n} ${pl(n,'peça','peças')}">
+          <span class="w-10 h-10 rounded-full grid place-items-center text-base font-bold" style="box-shadow:0 0 0 4px #fefdfc;${on?(st.k==='k'?'background:#027a48;color:#fefdfc':'background:#613b1d;color:#fefdfc'):'background:#eceae8;color:#5e5c5b'}">${n}</span>
+          <span class="text-xs ${on?'font-bold':'text-muted'}">${st.short}</span></li>`;}).join('')}
+      </ol>
+      ${s.c.x?`<div class="mt-2 flex items-center gap-2 text-sm font-bold" style="color:#b42318">${alertIcon} ${s.c.x} em recorte (retorna ao corte)</div>`:''}
+    </div>`:''}
+    <div>
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-2">Itens (${o.items.length}) · medidas alt. × larg. × comp.</div>
+      ${o.items.length?`<ul class="divide-y divide-[#eceae8] rounded-lg border border-base-200">${o.items.map((i,idx)=>`<li class="p-3">
+          <div class="flex items-baseline gap-3">
+            <span class="text-lg font-bold tabular-nums shrink-0">${i.qty}×</span>
+            <span class="font-medium tabular-nums text-base">${mm(i)} <span class="text-muted text-sm font-normal">mm</span></span>
+            <span class="ml-auto text-xs text-muted shrink-0">Item ${idx+1}</span>
+          </div>
+          <div class="text-sm text-muted mb-2">${esc(i.desc)}</div>
+          <div class="flex flex-wrap gap-1.5">${i.pieces.length? i.pieces.map(p=>{const st=STAGE_BY[p.stage];
+            return `<span class="badge border-0 whitespace-nowrap tabular-nums ${p.stage==='x'?'font-bold':''}" style="background:${st.bg};color:${st.text}">nº ${p.n} · ${st.short}</span>`;}).join('')
+            : `<span class="text-sm font-medium" style="color:#a15c07">Sem peça vinculada</span>`}
+            ${i.pieces.length && i.pieces.length<i.qty?`<span class="badge border border-dashed border-base-300 bg-transparent text-muted">+${i.qty-i.pieces.length} sem vínculo</span>`:''}</div>
+        </li>`).join('')}</ul>`
+      : `<div class="rounded-lg border border-dashed border-base-300 p-5 text-center text-muted">Este pedido ainda não tem itens cadastrados.</div>`}
+    </div>
+    <button class="btn btn-primary btn-lg w-full" data-goto-order="${o.n}">Abrir em Pedidos</button>
+  </div>`;
+}
+function renderDetail(){
+  const o = ORDERS.find(x=>x.n===state.sel && isActive(x));
+  $('#detail').innerHTML = detailHTML(o);
+  $('#sheetBody').innerHTML = detailHTML(o);
+}
+function renderDash(){ renderDashClients(); renderStats(); renderChips(); renderQueue(); renderDetail(); }
+const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
+function select(n, open=true){
+  state.sel = n; renderQueue(); renderDetail();
+  if(open && isMobile()) $('#sheet').showModal();
+}
+function findPiece(val){
+  const n = +String(val).replace(/\D/g,'');
+  const ctx = pieceCtx(n);
+  if(ctx && isActive(ctx.o)){
+    Object.assign(state,{q:'',client:'',chip:'todos',extra:null}); $('#q').value=''; $('#client').value='';
+    renderDash(); select(ctx.o.n); toast(`Peça nº ${n} · pedido #${ctx.o.n} · ${STAGE_BY[ctx.p.stage].label}`);
+    document.querySelector(`[data-order="${ctx.o.n}"]`)?.scrollIntoView({block:'nearest',behavior:'smooth'}); return;
+  }
+  toast(`Peça nº ${val||'—'} não encontrada nos pedidos não entregues.`, 'error');
+}
+
+/* =====================================================================
+   Infra: toast, modal, confirmação, drawer, rotas
+   ===================================================================== */
+function toast(msg, lvl='info'){
+  const box = $('#toast');
+  try{ if(box.matches(':popover-open')) box.hidePopover(); box.showPopover(); }catch(e){}
+  const t = document.createElement('div');
+  t.className = 'alert shadow-lg text-base border-0 max-w-[22rem] whitespace-normal';
+  t.style.cssText = lvl==='error' ? 'background:#fee4e2;color:#b42318' : lvl==='ok' ? 'background:#027a48;color:#fefdfc' : 'background:#272626;color:#fefdfc';
+  t.textContent = msg; box.appendChild(t);
+  setTimeout(()=>{ t.remove(); if(!box.children.length) try{box.hidePopover();}catch(e){} }, 3200);
+}
+
+const M = {acts:{}};
+const footBtns = (save='Salvar', cls='btn-primary') => `<button class="btn btn-ghost btn-lg px-4" data-act="close">Cancelar</button><button class="btn ${cls} btn-lg flex-1 sm:flex-none whitespace-nowrap" data-act="save">${save}</button>`;
+function openM({title, body, foot, size='sm:max-w-2xl', acts={}, onSave, saveLabel, saveClass, mount}){
+  const d = $('#m');
+  M.acts = Object.assign({close:()=>d.close(), save:()=>{ if(!onSave || onSave()!==false) d.close(); }}, acts);
+  $('#mTitle').textContent = title;
+  $('#mBox').className = `modal-box p-0 flex flex-col max-h-[92vh] w-full ${size}`;
+  $('#mBody').innerHTML = body;
+  $('#mFoot').innerHTML = foot ?? footBtns(saveLabel, saveClass);
+  if(!d.open) d.showModal();
+  $('#mBody').scrollTop = 0;
+  mount && mount($('#mBody'));
+}
+$('#m').addEventListener('click', e=>{ const b = e.target.closest('[data-act]'); if(b && M.acts[b.dataset.act]){ e.preventDefault(); M.acts[b.dataset.act](b, e); } });
+
+let m2cb = null;
+function confirmM({title, html, ok='Confirmar', cls='btn-primary', onOk}){
+  $('#m2Title').textContent = title; $('#m2Body').innerHTML = html;
+  const b = $('#m2Ok'); b.textContent = ok; b.className = `btn btn-lg flex-1 sm:flex-none whitespace-nowrap ${cls}`;
+  m2cb = onOk; $('#m2').showModal();
+}
+$('#m2').addEventListener('click', e=>{ const b=e.target.closest('[data-m2]'); if(!b) return;
+  if(b.dataset.m2==='ok'){ if(m2cb && m2cb()===false) return; }
+  $('#m2').close(); });
+
+/* Drawer de detalhe */
+const PANEL = {kind:null, id:null};
+function openPanel(kind, id){
+  PANEL.kind = kind; PANEL.id = id; renderPanel();
+  const d = $('#panel'); if(!d.open) d.showModal(); $('#panelBody').scrollTop = 0;
+}
+function renderPanel(){
+  if(!PANEL.kind) return;
+  const r = ({order:panelOrder, piece:panelPiece, prod:panelProd, client:panelClient})[PANEL.kind](PANEL.id);
+  $('#panelKicker').innerHTML = r.kicker; $('#panelBody').innerHTML = r.body; $('#panelFoot').innerHTML = r.foot || '';
+}
+$('#panel').addEventListener('close', ()=>{ PANEL.kind=null; if(location.hash.split('/').length>2) history.replaceState(null,'',`#/${current}`); });
+
+/* Campos */
+const fld = (label, input, hint='') => `<label class="flex flex-col gap-1.5"><span class="font-medium text-base">${label}</span>${input}${hint?`<span class="text-sm text-muted">${hint}</span>`:''}</label>`;
+const numIn = (id, val='', ph='mm', extra='') => `<input id="${id}" type="number" min="1" inputmode="numeric" class="input input-lg w-full num-in tabular-nums" value="${val}" placeholder="${ph}" ${extra}>`;
+const mmFields = (pfx, v={}) => `<div class="grid grid-cols-3 gap-3">
+  ${fld('Altura', numIn(pfx+'H', v.h??''))}${fld('Largura', numIn(pfx+'W', v.w??''))}${fld('Comprimento', numIn(pfx+'L', v.l??''))}</div>`;
+const readMM = pfx => ({h:+$('#'+pfx+'H').value, w:+$('#'+pfx+'W').value, l:+$('#'+pfx+'L').value});
+const validMM = m => m.h>0 && m.w>0 && m.l>0;
+const errBox = id => `<div id="${id}" role="alert" class="alert border-0 py-2.5 mb-4 text-base" style="background:#fee4e2;color:#b42318" hidden></div>`;
+function showErr(id, msg){ const e=$('#'+id); if(!e) return; e.hidden=!msg; e.textContent=msg||''; if(msg) e.scrollIntoView({block:'nearest'}); }
+const sectionTitle = t => `<div class="text-xs uppercase tracking-wide text-muted font-medium mb-2">${t}</div>`;
+
+/* =====================================================================
+   Navegação, cabeçalho, perfil
+   ===================================================================== */
+const NAV = [
+  {group:'Operação', items:[
+    ['painel','Painel operacional','M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'],
+    ['clientes','Clientes','M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'],
+    ['pedidos','Pedidos','M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01'],
+    ['planejamento','Planejamento','M3 5h18v16H3zM3 10h18M8 3v4M16 3v4'],
+    ['producao','Produção','M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z'],
+    ['excedentes','Excedentes','M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8'],
+    ['conferencia','Conferência','M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'],
+  ]},
+  {group:'Administração', admin:true, items:[
+    ['funcionarios','Funcionários','M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'],
+  ]},
+];
+let current = 'painel';
+function renderMenu(){
+  $('#menu').innerHTML = NAV.filter(g=>!g.admin || session.role==='Admin').map(g=>`
+    <li class="menu-title text-[#fefdfc]/55 text-xs uppercase tracking-wide ${g.admin?'mt-4':''} pt-1">${g.group}</li>
+    ${g.items.map(([k,l,d])=>{ const act = k===current; return `<li><a href="#/${k}" class="py-3 rounded-lg ${act?'bg-menu-active text-[#272626] font-bold':'text-[#fefdfc]/85 hover:bg-white/10'}" ${act?'aria-current="page"':''}>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="${d}"/></svg>${l}</a></li>`;}).join('')}`).join('');
+  $$('[data-role-toggle]').forEach(el=>{ const dark = el.hasAttribute('data-dark');
+    el.innerHTML = ['Admin','Operador'].map(r=>`<button class="btn btn-sm join-item ${session.role===r ? (dark?'bg-menu-active text-[#272626] border-0':'btn-neutral') : (dark?'btn-ghost text-[#fefdfc] border-white/25':'')}" data-role="${r}" aria-pressed="${session.role===r}">${r}</button>`).join(''); });
+  $('#userInitials').textContent = initials(session.user);
+  $('#userName').textContent = session.user; $('#userRole').textContent = session.role;
+  $$('[data-user-initials]').forEach(e=>e.textContent=initials(session.user)); $$('[data-user-name]').forEach(e=>e.textContent=session.user); $$('[data-user-role]').forEach(e=>e.textContent=session.role);
+}
+const VIEWS = {
+  painel:      {title:'Painel operacional', sub:()=>`Somente consulta · ${fmtTime(new Date())}`, primary:['Novo pedido', ()=>novoPedido()]},
+  clientes:    {title:'Clientes', sub:()=>`${CLIENTS.length} cadastrados · ${CLIENTS.filter(c=>c.active).length} ativos`, primary:['Novo cliente', ()=>clienteModal()]},
+  pedidos:     {title:'Pedidos', sub:()=>`${ACTIVE().length} não entregues`, primary:['Novo pedido', ()=>novoPedido()]},
+  planejamento:{title:'Planejamento', sub:()=>'Fila por prioridade · Máxima no topo', primary:['Registrar produção', ()=>registrarProducao()]},
+  producao:    {title:'Produção', sub:()=>{ const op=PRODS.find(p=>p.open); return op?`Produção aberta: ${op.id}`:'Nenhuma produção aberta'; }, primary:['Registrar produção', ()=>registrarProducao()]},
+  excedentes:  {title:'Excedentes', sub:()=>`${surplusTotal()} unidades disponíveis`, primary:['Registrar excedente', ()=>excedenteModal()]},
+  conferencia: {title:'Conferência', sub:()=>'Medidas e condições finais da peça', primary:null},
+  funcionarios:{title:'Funcionários', sub:()=>`Administração · ${USERS.length} usuários`, primary:['Cadastrar', ()=>usuarioModal()], admin:true},
+};
+const RENDER = {painel:renderDash, clientes:renderClientes, pedidos:renderPedidos, planejamento:renderPlan, producao:renderProd, excedentes:renderExc, conferencia:renderConf, funcionarios:renderUsers};
+function renderHeader(){
+  const v = VIEWS[current];
+  $('#pgTitle').textContent = v.title; $('#pgSub').textContent = v.sub();
+  document.title = `${v.title} · Crettyard`;
+  const p = $('#hdrPrimary'); p.hidden = !v.primary;
+  if(v.primary){ $('#hdrPrimaryLabel').textContent = v.primary[0]; p.setAttribute('aria-label', v.primary[0]); }
+  $$('[data-only]').forEach(el=>el.hidden = el.dataset.only!==current);
+  $('#userBlock').className = `leading-tight ${current==='painel'?'hidden 2xl:block':'hidden lg:block'}`;
+}
+function renderAll(){ renderHeader(); RENDER[current](); if(PANEL.kind && $('#panel').open) renderPanel(); }
+function route(){
+  const [, view='painel', param] = location.hash.split('/');
+  if(view==='login'){ showLogin(); return; }
+  $('#login').hidden = true; $('#app').hidden = false;
+  let v = VIEWS[view] ? view : 'painel';
+  if(VIEWS[v].admin && session.role!=='Admin'){ toast('Funcionários é exclusivo do perfil Admin.', 'error'); v='painel'; history.replaceState(null,'','#/painel'); }
+  const changed = v!==current; current = v;
+  $$('[data-view]').forEach(s=>s.hidden = s.dataset.view!==v);
+  $('#nav').checked = false;
+  if(changed){ window.scrollTo(0,0); if($('#panel').open && !param) $('#panel').close(); if($('#sheet').open) $('#sheet').close(); }
+  renderMenu(); renderAll();
+  if(param){
+    if(v==='pedidos'){ const o=orderByN(param); if(o){ ps.tab = tabOf(o); renderPedidos(); openPanel('order', o.n); } }
+    if(v==='clientes'){ openPanel('client', +param); }
+    if(v==='producao'){ if(String(param).startsWith('P-')) openPanel('prod', param); else openPanel('piece', +param); }
+  }
+}
+const go = (view, param) => { location.hash = `#/${view}${param!=null?'/'+param:''}`; };
+window.addEventListener('hashchange', route);
+
+/* =====================================================================
+   PEDIDOS
+   ===================================================================== */
+const TABS = [
+  {k:'aberto',   label:'Em aberto',   phases:['sem itens','aguardando produção']},
+  {k:'producao', label:'Em produção', phases:['em produção','embalagem','expedição']},
+  {k:'concl',    label:'Concluídos',  phases:['entregue','cancelado']},
+];
+const tabOf = o => TABS.find(t=>t.phases.includes(o.phase)).k;
+const ps = {tab:'producao', q:'', prio:'', cli:''};
+function pedidosBase(){
+  const q = ps.q.trim().toLowerCase();
+  return ORDERS.filter(o => (!q || String(o.n).includes(q.replace('#','')) || o.client.toLowerCase().includes(q)) && (!ps.prio || o.prio===ps.prio) && (!ps.cli || o.client===ps.cli));
+}
+function renderPedidos(){
+  const base = pedidosBase();
+  $('#pTabs').innerHTML = TABS.map(t=>{ const n=base.filter(o=>t.phases.includes(o.phase)).length, on=ps.tab===t.k;
+    return `<button role="tab" class="tab sm:tab-lg h-auto py-2 sm:py-0 sm:h-[var(--tab-height)] flex-col sm:flex-row flex-nowrap whitespace-nowrap gap-1 sm:gap-2 px-2 sm:px-3 text-base ${on?'tab-active font-bold':''}" aria-selected="${on}" data-ptab="${t.k}">${t.label}<span class="badge ${on?'bg-base-100 text-base-content':'bg-base-200'} border-0 font-bold">${n}</span></button>`; }).join('');
+  const cl = [...new Set(ORDERS.map(o=>o.client))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  $('#pCli').innerHTML = `<option value="">Todos os clientes</option>` + cl.map(c=>`<option ${ps.cli===c?'selected':''}>${esc(c)}</option>`).join('');
+  const tab = TABS.find(t=>t.k===ps.tab);
+  const list = base.filter(o=>tab.phases.includes(o.phase)).sort((a,b)=> ps.tab==='concl' ? b.n-a.n : PRIO[a.prio].rank-PRIO[b.prio].rank || a.n-b.n);
+  $('#pBody').innerHTML = list.length ? list.map(o=>`
+    <tr class="trow" tabindex="0" data-open-order="${o.n}">
+      <td class="pl-6" style="box-shadow:inset 6px 0 0 ${PRIO[o.prio].color}">
+        <div class="text-2xl font-bold tabular-nums leading-tight">#${o.n}</div>
+        <div class="md:hidden text-base font-medium truncate max-w-[13rem]">${esc(o.client)}</div>
+        <div class="sm:hidden mt-1.5 flex items-center gap-2"><span class="text-sm font-medium" style="color:${PRIO[o.prio].color}">${o.prio}</span>${phaseBadge(o)}</div>
+      </td>
+      <td class="hidden md:table-cell text-lg font-medium">${esc(o.client)}</td>
+      <td class="hidden sm:table-cell"><span class="text-base ${o.prio==='Máxima'?'font-bold':''}" style="color:${PRIO[o.prio].color}">${o.prio}</span></td>
+      <td class="hidden sm:table-cell">${phaseBadge(o)}${stats(o).attention && isActive(o)?`<span class="ml-2 inline-flex align-middle" style="color:#b42318" title="Peça em recorte">${alertIcon}</span>`:''}</td>
+      <td class="text-base-300">${ICON.chev}</td>
+    </tr>`).join('') : `<tr><td colspan="5" class="text-center py-14"><div class="text-xl font-bold">Nenhum pedido</div><p class="text-muted">Nenhum pedido nesta aba corresponde à busca.</p></td></tr>`;
+}
+$('#pQ').addEventListener('input', e=>{ ps.q=e.target.value; renderPedidos(); });
+$('#pPrio').addEventListener('change', e=>{ ps.prio=e.target.value; renderPedidos(); });
+$('#pCli').addEventListener('change', e=>{ ps.cli=e.target.value; renderPedidos(); });
+
+function clientCard(c){
+  if(!c) return '';
+  return `<div class="rounded-lg border border-base-200 p-4 space-y-1">
+    <div class="flex items-center gap-2 flex-wrap"><span class="text-lg font-bold">${esc(c.name)}</span>${c.vip?vipMark():''}<span class="text-sm text-muted">· ${TYPE_LABEL[c.type]}</span></div>
+    <div class="text-base">${esc(c.phones[0]||'—')}${c.email?` · <span class="text-muted">${esc(c.email)}</span>`:''}</div>
+    <div class="text-sm text-muted">${esc(c.addr)}, ${esc(c.city)} · ${esc(c.eircode)}</div>
+    <button class="btn btn-ghost btn-sm px-0 text-primary underline-offset-2 hover:underline" data-open-client="${c.id}">Ver cadastro do cliente</button></div>`;
+}
+function itemsList(o, clickable=true){
+  if(!o.items.length) return `<div class="rounded-lg border border-dashed border-base-300 p-5 text-center text-muted">Este pedido ainda não tem itens cadastrados.</div>`;
+  return `<ul class="divide-y divide-[#eceae8] rounded-lg border border-base-200">${o.items.map((i,idx)=>`<li class="p-3">
+    <div class="flex items-baseline gap-3"><span class="text-lg font-bold tabular-nums shrink-0">${i.qty}×</span>
+      <span class="font-medium tabular-nums text-base">${mm(i)} <span class="text-muted text-sm font-normal">mm</span></span>
+      <span class="ml-auto text-xs text-muted shrink-0">Item ${idx+1}</span></div>
+    <div class="text-sm text-muted mb-2">${esc(i.desc||'—')}</div>
+    <div class="flex flex-wrap gap-1.5">${i.pieces.length ? i.pieces.map(p=>{const st=STAGE_BY[p.stage];
+      return `<button class="badge border-0 whitespace-nowrap tabular-nums hover:ring-2 hover:ring-[#613b1d]/30 ${p.stage==='x'?'font-bold':''}" style="background:${st.bg};color:${st.text}" ${clickable?`data-open-piece="${p.n}"`:''} title="Abrir peça nº ${p.n}">nº ${p.n} · ${st.short}</button>`;}).join('')
+      : `<span class="text-sm font-medium" style="color:#a15c07">Sem peça vinculada</span>`}
+      ${i.pieces.length && i.pieces.length<i.qty?`<span class="badge border border-dashed border-base-300 bg-transparent text-muted">+${i.qty-i.pieces.length} sem vínculo</span>`:''}</div></li>`).join('')}</ul>`;
+}
+function panelOrder(n){
+  const o = orderByN(n), c = clientByName(o.client), s = stats(o);
+  const dates = [['Criado em', fmtDT(o.created), `por ${o.createdBy}`], ['Previsão de entrega', o.due==='—'?'—':`${o.due}/2026`, '']];
+  if(o.deliveredAt) dates.push([o.mode==='retirada'?'Retirado em':'Entregue em', fmtDT(o.deliveredAt), `por ${o.deliveredBy}`]);
+  if(o.cancelledAt) dates.push(['Cancelado em', fmtDT(o.cancelledAt), `por ${o.cancelledBy}`]);
+  const body = `<div class="space-y-5">
+    <div style="border-left:6px solid ${PRIO[o.prio].color}" class="pl-4">
+      <div class="flex items-baseline gap-3 flex-wrap"><h2 class="text-3xl font-bold tabular-nums">#${o.n}</h2><span class="text-xl font-medium">${esc(o.client)}</span></div>
+      <div class="flex flex-wrap gap-2 mt-3">${prioBadge(o.prio)} ${phaseBadge(o)}</div>
+    </div>
+    ${o.phase==='cancelado'?`<div role="alert" class="alert items-start border-0" style="background:#f2f4f7;color:#272626"><div><div class="font-bold">Justificativa do cancelamento</div><div>${esc(o.cancelReason)}</div></div></div>`:''}
+    <div class="rounded-lg bg-canvas p-4"><div class="text-xs uppercase tracking-wide text-muted font-medium mb-1">Situação</div><p class="text-lg leading-snug">${situation(o)}</p></div>
+    <div>${sectionTitle(`Itens (${o.items.length}) · ${s.linked} de ${s.total} peças vinculadas · alt. × larg. × comp.`)}${itemsList(o)}</div>
+    <div>${sectionTitle('Datas')}<dl class="grid grid-cols-2 gap-3">${dates.map(([k,v,u])=>`<div><dt class="text-sm text-muted">${k}</dt><dd class="font-medium text-base">${v}</dd>${u?`<dd class="text-xs text-muted">${u}</dd>`:''}</div>`).join('')}
+      <div><dt class="text-sm text-muted">Material</dt><dd class="font-medium text-base">${esc(o.stone)}</dd></div></dl></div>
+    <div>${sectionTitle('Cliente')}${clientCard(c)}</div>
+  </div>`;
+  const can = isActive(o);
+  const foot = can ? `<button class="btn btn-outline btn-lg flex-1 whitespace-nowrap" data-gact="editPrio" data-n="${o.n}">Editar prioridade</button>
+    <button class="btn btn-ghost btn-lg flex-1 whitespace-nowrap text-error" data-gact="cancelOrder" data-n="${o.n}">Cancelar pedido</button>` : '';
+  return {kicker:'Pedido', body, foot};
+}
+
+/* Prioridade: Máxima só para VIP; All Stone sempre Máxima */
+function prioCards(sel, clientName){
+  const c = clientByName(clientName), forced = c?.name==='All Stone', vip = !!c?.vip;
+  return `<div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Prioridade">${['Normal','Alta','Urgente','Máxima'].map(p=>{
+    const dis = forced ? p!=='Máxima' : (p==='Máxima' && !vip), on = forced ? p==='Máxima' : sel===p;
+    return `<label class="card border ${on?'border-primary ring-2 ring-[#613b1d]/25 bg-[#fbf6f1]':'border-base-200'} ${dis?'opacity-45 cursor-not-allowed':'cursor-pointer hover:border-base-300'} p-4 flex-row items-center gap-3" style="border-left:6px solid ${PRIO[p].color}">
+      <input type="radio" name="prio" value="${p}" class="radio radio-primary" ${on?'checked':''} ${dis?'disabled':''}>
+      <div class="min-w-0"><div class="font-bold text-lg leading-tight">${p}</div><div class="text-sm text-muted leading-snug">${PRIO_DESC[p]}</div></div></label>`; }).join('')}</div>
+    <p class="text-sm mt-3 ${forced?'font-medium':''} text-muted">${forced?'All Stone é sempre prioridade Máxima.':vip?'Cliente VIP: Máxima disponível.':c?'Máxima é exclusiva para clientes VIP.':''}</p>`;
+}
+const readPrio = () => document.querySelector('#mBody input[name="prio"]:checked')?.value;
+
+function editPrio(n){
+  const o = orderByN(n); let sel = o.prio;
+  const paint = () => { $('#mBody').innerHTML = `<p class="text-base mb-4">Pedido <b>#${o.n}</b> · ${esc(o.client)}</p>${prioCards(sel, o.client)}`; };
+  openM({title:'Editar prioridade', body:'', size:'sm:max-w-lg', onSave:()=>{ const p = readPrio(); if(!p) return false;
+      const old=o.prio; o.prio=p; toast(old===p?'Prioridade mantida.':`Pedido #${o.n}: prioridade ${old} → ${p}.`, 'ok'); renderAll(); },
+    mount:()=>{ paint(); $('#mBody').onchange = e=>{ if(e.target.name==='prio'){ sel=e.target.value; paint(); } }; }});
+}
+function cancelOrder(n){
+  const o = orderByN(n);
+  openM({title:`Cancelar pedido #${o.n}`, size:'sm:max-w-lg', saveLabel:'Cancelar pedido', saveClass:'btn-error',
+    foot:`<button class="btn btn-ghost btn-lg px-4" data-act="close">Voltar</button><button class="btn btn-error btn-lg flex-1 sm:flex-none whitespace-nowrap" data-act="save">Cancelar pedido</button>`,
+    body:`${errBox('cErr')}<p class="text-base mb-4">O pedido <b>#${o.n}</b> de <b>${esc(o.client)}</b> sairá das filas de planejamento e produção. ${stats(o).linked?`As ${stats(o).linked} peças vinculadas continuarão rastreáveis.`:''}</p>
+      ${fld('Justificativa (obrigatória)', `<textarea id="cReason" class="textarea textarea-lg w-full h-28" placeholder="Explique o motivo do cancelamento"></textarea>`, 'Mínimo de 10 caracteres. Fica registrada no pedido.')}`,
+    onSave:()=>{ const r = $('#cReason').value.trim(); if(r.length<10){ showErr('cErr','Informe a justificativa (mínimo de 10 caracteres).'); $('#cReason').classList.add('textarea-error'); return false; }
+      Object.assign(o,{phase:'cancelado', cancelReason:r, cancelledAt:nowISO(), cancelledBy:session.user}); toast(`Pedido #${o.n} cancelado.`, 'ok'); renderAll(); }});
+}
+
+/* Novo pedido – 2 etapas */
+function novoPedido(preClient){
+  const D = {step:1, client: preClient || '', prio: preClient==='All Stone' ? 'Máxima' : 'Normal', items:[], res:{}};
+  const actClients = CLIENTS.filter(c=>c.active).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const stepsBar = () => `<ul class="steps w-full mb-5 text-sm"><li class="step step-primary">Cliente e prioridade</li><li class="step ${D.step===2?'step-primary':''}">Itens</li></ul>`;
+  function compat(m){ if(!m.h) return []; return SURPLUS.filter(s=>s.h===m.h && (!m.w||s.w>=m.w) && (!m.l||s.l>=m.l)).sort((a,b)=>(a.w*a.l)-(b.w*b.l)); }
+  const reservedElsewhere = id => D.items.reduce((a,i)=>a+(i.res[id]||0),0);
+  function paintSugg(){
+    const m = {h:+$('#niH').value, w:+$('#niW').value, l:+$('#niL').value}, q = +$('#niQ').value||0;
+    const list = compat(m), totalRes = Object.values(D.res).reduce((a,b)=>a+b,0);
+    $('#niSugg').innerHTML = !m.h ? `<p class="text-muted text-base">Informe ao menos a altura para ver excedentes compatíveis (mesma altura, largura e comprimento iguais ou maiores).</p>`
+      : !list.length ? `<p class="text-muted text-base">Nenhum excedente compatível com ${m.h} mm de altura.</p>`
+      : `<ul class="space-y-2">${list.map(s=>{ const free = s.qty - reservedElsewhere(s.id), r = D.res[s.id]||0, exact = s.w===m.w && s.l===m.l;
+          return `<li class="rounded-lg border ${r?'border-primary bg-[#fbf6f1]':'border-base-200'} p-3 flex items-center gap-3">
+            <div class="min-w-0 flex-1"><div class="font-bold tabular-nums">${mm(s)} <span class="text-xs text-muted font-normal">mm</span></div>
+              <div class="text-sm text-muted">${s.id} · ${free} disp.${exact?' · <span class="font-medium" style="color:#027a48">medida exata</span>':' · exige recorte'}</div></div>
+            ${r?`<button type="button" class="btn btn-sm btn-ghost" data-act="unres" data-id="${s.id}" aria-label="Remover reserva">−</button><span class="font-bold tabular-nums w-5 text-center">${r}</span>`:''}
+            <button type="button" class="btn btn-sm ${r?'btn-ghost':'btn-outline'}" data-act="res" data-id="${s.id}" ${free-r<=0||totalRes>=q?'disabled':''}>${r?'+':'Usar'}</button></li>`; }).join('')}</ul>`;
+  }
+  function paint(){
+    if(D.step===1){
+      $('#mTitle').textContent = 'Novo pedido';
+      $('#mBody').innerHTML = `${stepsBar()}${errBox('npErr')}<div class="space-y-5">
+        ${fld('Cliente', `<select id="npCli" class="select select-lg w-full"><option value="">Selecione o cliente</option>${actClients.map(c=>`<option ${D.client===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`)}
+        <div><div class="font-medium text-base mb-2">Prioridade</div>${prioCards(D.prio, D.client)}</div></div>`;
+      $('#mFoot').innerHTML = `<button class="btn btn-ghost btn-lg px-4" data-act="close">Cancelar</button><button class="btn btn-primary btn-lg flex-1 sm:flex-none whitespace-nowrap" data-act="next">Próximo: itens →</button>`;
+    } else {
+      $('#mBody').innerHTML = `${stepsBar()}${errBox('npErr')}
+        <div class="rounded-lg bg-canvas px-4 py-3 mb-5 flex flex-wrap gap-x-3 items-center text-base" style="border-left:6px solid ${PRIO[D.prio].color}"><b>${esc(D.client)}</b><span class="text-muted">Prioridade ${D.prio}</span></div>
+        <div class="grid gap-5 md:grid-cols-[minmax(0,1fr)_17rem]">
+          <div class="space-y-4">
+            ${fld('Descrição do item <span class="text-muted font-normal">(opcional)</span>', `<input id="niD" class="input input-lg w-full" placeholder="Ex.: Bancada cozinha">`)}
+            <div class="grid grid-cols-4 gap-3">${fld('Qtd.', numIn('niQ','1','un.'))}${fld('Altura', numIn('niH'))}${fld('Largura', numIn('niW'))}${fld('Compr.', numIn('niL'))}</div>
+            <p class="text-sm text-muted -mt-2">Medidas em milímetros (mm).</p>
+            <button type="button" class="btn btn-outline btn-primary btn-lg w-full" data-act="addItem">${ICON.plus} Incluir item</button>
+          </div>
+          <aside class="rounded-lg border border-base-200 p-4 bg-base-100">
+            <div class="font-bold mb-1">Excedentes compatíveis</div><div id="niSugg"></div></aside>
+        </div>
+        <div class="mt-6">${sectionTitle(`Itens do pedido (${D.items.length})`)}
+          ${D.items.length ? `<ul class="divide-y divide-[#eceae8] rounded-lg border border-base-200">${D.items.map((i,k)=>{ const rs = Object.entries(i.res).filter(([,v])=>v);
+            return `<li class="p-3 flex items-center gap-3"><span class="text-lg font-bold tabular-nums">${i.qty}×</span>
+              <div class="min-w-0 flex-1"><div class="font-medium tabular-nums">${mm(i)} <span class="text-sm text-muted font-normal">mm</span></div>
+              <div class="text-sm text-muted">${esc(i.desc||'Sem descrição')}${rs.length?` · usa ${rs.map(([id,v])=>`${v}× ${id}`).join(', ')}`:''}</div></div>
+              <button type="button" class="btn btn-ghost btn-square text-error" data-act="rmItem" data-k="${k}" aria-label="Remover item">${ICON.trash}</button></li>`; }).join('')}</ul>`
+            : `<div class="rounded-lg border border-dashed border-base-300 p-4 text-center text-muted">Nenhum item incluído. O pedido pode ser salvo sem itens e completado depois.</div>`}
+        </div>`;
+      $('#mFoot').innerHTML = `<button class="btn btn-ghost btn-lg px-4" data-act="back">← Voltar</button><button class="btn btn-primary btn-lg flex-1 sm:flex-none whitespace-nowrap" data-act="save">Salvar pedido</button>`;
+      ['niH','niW','niL','niQ'].forEach(id=>$('#'+id).addEventListener('input', paintSugg)); paintSugg();
+    }
+  }
+  openM({title:'Novo pedido', body:'', size:'sm:max-w-3xl', mount:()=>{ paint();
+      $('#mBody').onchange = e=>{ if(e.target.id==='npCli'){ D.client=e.target.value; const c=clientByName(D.client); if(c?.name==='All Stone') D.prio='Máxima'; else if(D.prio==='Máxima' && !c?.vip) D.prio='Normal'; paint(); }
+        if(e.target.name==='prio'){ D.prio=e.target.value; paint(); } }; },
+    acts:{
+      next:()=>{ if(!D.client){ showErr('npErr','Selecione o cliente.'); return; } D.prio = readPrio() || D.prio; D.step=2; paint(); },
+      back:()=>{ D.step=1; paint(); },
+      res:b=>{ D.res[b.dataset.id]=(D.res[b.dataset.id]||0)+1; paintSugg(); },
+      unres:b=>{ D.res[b.dataset.id]=Math.max(0,(D.res[b.dataset.id]||0)-1); paintSugg(); },
+      addItem:()=>{ const m = readMM('ni'), q=+$('#niQ').value;
+        if(!(q>0) || !validMM(m)){ showErr('npErr','Informe quantidade, altura, largura e comprimento (mm).'); return; }
+        const totalRes = Object.values(D.res).reduce((a,b)=>a+b,0); if(totalRes>q){ showErr('npErr','Há mais excedentes reservados que a quantidade do item.'); return; }
+        D.items.push({qty:q, ...m, desc:$('#niD').value.trim(), res:{...D.res}}); D.res={}; paint(); },
+      rmItem:b=>{ D.items.splice(+b.dataset.k,1); paint(); },
+      save:()=>{
+        const n = Math.max(...ORDERS.map(o=>o.n))+1, c = clientByName(D.client);
+        const o = {n, client:D.client, prio:D.prio, phase:D.items.length?'aguardando produção':'sem itens', stone:'—', due:'—', created:nowISO(), createdBy:session.user,
+          items:D.items.map(i=>({qty:i.qty,h:i.h,w:i.w,l:i.l,desc:i.desc,pieces:[]}))};
+        ORDERS.push(o); let used=0;
+        D.items.forEach((di,k)=>Object.entries(di.res).forEach(([id,v])=>{ const s=SURPLUS.find(x=>x.id===id); if(!s||!v) return;
+          for(let j=0;j<v;j++){ const p={n:nextPieceN(), stage:'c', h:s.h, w:s.w, l:s.l, prod:s.prod}; o.items[k].pieces.push(p); histAdd(p,'Vínculo com pedido/item',`#${n} · Item ${k+1} · a partir do excedente ${id}`); used++; }
+          s.qty-=v; }));
+        for(let i=SURPLUS.length-1;i>=0;i--) if(SURPLUS[i].qty<=0) SURPLUS.splice(i,1);
+        updatePhase(o);
+        $('#m').close(); toast(`Pedido #${n} criado para ${c.name}${used?` · ${used} excedente(s) vinculado(s)`:''}.`, 'ok');
+        ps.tab = tabOf(o); ps.q=''; ps.prio=''; ps.cli=''; $('#pQ').value=''; $('#pPrio').value='';
+        go('pedidos', n);
+      },
+    }});
+}
+
+/* =====================================================================
+   PLANEJAMENTO
+   ===================================================================== */
+function renderPlan(){
+  const list = sorted().filter(o=>o.items.length);
+  const semItens = ACTIVE().filter(o=>!o.items.length).length;
+  $('#plCount').textContent = `${list.length} pedidos · prioridade, depois nº${semItens?` · ${semItens} sem itens fora da fila`:''}`;
+  $('#plList').innerHTML = list.map(o=>{
+    const s = stats(o), max = o.prio==='Máxima', saida = o.phase==='embalagem'||o.phase==='expedição';
+    return `<article class="card bg-base-100 border ${max?'border-[#f4b8b2] ring-2 ring-[#b42318]/15':'border-base-200'}" style="border-left:6px solid ${PRIO[o.prio].color}">
+      <div class="p-4 sm:p-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
+        <div class="min-w-0 space-y-3">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span class="text-2xl font-bold tabular-nums">#${o.n}</span><span class="text-lg font-medium">${esc(o.client)}</span>
+            <div class="flex flex-wrap gap-2 ml-auto">${s.attention?`<span class="badge badge-lg border-0 gap-1 font-bold" style="background:#fee4e2;color:#b42318">${alertIcon}${s.c.x} recorte</span>`:''}${prioBadge(o.prio)} ${phaseBadge(o)}</div>
+          </div>
+          <ul class="text-base space-y-1">${o.items.map((i,idx)=>`<li class="flex flex-wrap gap-x-2 items-baseline"><b class="tabular-nums">${i.qty}×</b><span class="tabular-nums font-medium">${mm(i)}</span><span class="text-sm text-muted">mm · ${esc(i.desc||'Item '+(idx+1))}</span>
+            <span class="text-sm ml-auto ${i.pieces.length<i.qty?'font-medium':''}" style="color:${i.pieces.length<i.qty?'#a15c07':'#5e5c5b'}">${i.pieces.length}/${i.qty} vinculadas</span></li>`).join('')}</ul>
+          ${pipeline(o)}
+          <p class="text-base text-muted">${situation(o)}</p>
+        </div>
+        <div class="flex flex-col gap-2 justify-center md:border-l md:border-base-200 md:pl-4">
+          ${saida ? `${fld('Saída', `<select class="select select-lg w-full" data-mode-for="${o.n}"><option value="retirada" ${o.mode!=='entrega'?'selected':''}>Retirada</option><option value="entrega" ${o.mode==='entrega'?'selected':''}>Entrega</option></select>`)}
+              <button class="btn btn-success btn-lg h-14 w-full whitespace-nowrap" data-gact="entregue" data-n="${o.n}">Marcar como entregue</button>`
+            : `<button class="btn btn-primary btn-xl h-16 w-full text-lg" data-gact="produzir" data-n="${o.n}">Produzir</button>`}
+          <button class="btn btn-ghost w-full" data-open-order="${o.n}">Ver detalhes</button>
+        </div>
+      </div></article>`; }).join('');
+}
+function marcarEntregue(n){
+  const o = orderByN(n), mode = document.querySelector(`[data-mode-for="${n}"]`)?.value || o.mode || 'retirada';
+  confirmM({title:`Marcar #${o.n} como entregue?`, ok:'Confirmar entrega', cls:'btn-success',
+    html:`<p>${esc(o.client)} · ${stats(o).total} peças · <b>${mode==='retirada'?'Retirada pelo cliente':'Entrega ao cliente'}</b>.</p><p class="text-muted mt-2">O pedido vai para Concluídos e deixa de aparecer no planejamento.</p>`,
+    onOk:()=>{ Object.assign(o,{phase:'entregue', mode, deliveredAt:nowISO(), deliveredBy:session.user}); o.items.forEach(i=>i.pieces.forEach(p=>histAdd(p,'Entrega', mode==='retirada'?'Retirada pelo cliente':'Entrega ao cliente')));
+      toast(`Pedido #${o.n} entregue (${mode}).`, 'ok'); renderAll(); }});
+}
+
+/* =====================================================================
+   PRODUÇÃO
+   ===================================================================== */
+const openProd = () => PRODS.find(p=>p.open);
+const piecesOf = id => allPieces().filter(x=>x.p.prod===id);
+function groupPieces(list){
+  const g = new Map();
+  list.forEach(x=>{ const k = `${x.o.n}|${x.idx}|${x.p.stage}|${x.p.h}|${x.p.w}|${x.p.l}`; if(!g.has(k)) g.set(k, {...x, ns:[]}); g.get(k).ns.push(x.p.n); });
+  return [...g.values()];
+}
+function queueItems(){
+  const out = [];
+  sorted().forEach(o=>{ if(!['aguardando produção','em produção'].includes(o.phase)) return;
+    o.items.forEach((i,idx)=>{ const free = i.qty - i.pieces.length; if(free>0) out.push({o,i,idx,free}); }); });
+  return out;
+}
+function renderProd(){
+  const op = openProd();
+  // Produção aberta
+  if(op){
+    const o = orderByN(op.order), groups = groupPieces(piecesOf(op.id)), exc = SURPLUS.filter(s=>s.prod===op.id);
+    $('#prOpen').innerHTML = `<div class="card bg-base-100 border border-base-200">
+      <div class="p-5 flex flex-wrap items-start gap-3 border-b border-base-200">
+        <div class="flex-1 min-w-[15rem]"><div class="text-sm text-muted">Produção aberta</div>
+          <div class="flex flex-wrap items-baseline gap-x-3"><h2 class="text-2xl font-bold">${op.id}</h2><span class="text-base text-muted">desde ${fmtDT(op.at)} · ${op.user}</span></div></div>
+        <span class="badge badge-lg border-0 font-medium" style="background:#d1e0ff;color:#175cd3">Aberta</span>
+        <button class="btn btn-outline w-full sm:w-auto" data-gact="encerrar">Encerrar produção</button>
+      </div>
+      <div class="p-5 space-y-5">
+        <div class="rounded-lg bg-canvas p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div><div class="text-xs uppercase tracking-wide text-muted font-medium">Pedra bruta (matéria-prima)</div>
+            <div class="text-2xl font-bold tabular-nums">${op.raw.join(' × ')} <span class="text-base font-normal text-muted">mm</span></div></div>
+          <div><div class="text-xs uppercase tracking-wide text-muted font-medium">Material</div><div class="text-lg font-medium">${esc(o?.stone||'—')}</div></div>
+          <div><div class="text-xs uppercase tracking-wide text-muted font-medium">Pedido principal</div><button class="text-lg font-medium hover:underline" data-open-order="${o.n}">#${o.n} · ${esc(o.client)}</button></div>
+        </div>
+        <div class="flex items-baseline justify-between"><h3 class="text-lg font-bold">Peças do lote</h3><span class="text-sm text-muted">${groups.reduce((a,g)=>a+g.ns.length,0)} peças${exc.length?` · ${exc.reduce((a,s)=>a+s.qty,0)} excedentes`:''}</span></div>
+        ${groups.length||exc.length ? `<div class="grid gap-3 sm:grid-cols-2">${groups.map(g=>`
+          <div class="row-card card bg-base-100 border border-base-200 p-4 gap-2 cursor-pointer" style="border-left:6px solid ${PRIO[g.o.prio].color}" data-open-piece="${g.ns[0]}" tabindex="0">
+            <div class="flex flex-wrap items-center gap-2">${g.ns.map(n=>`<button class="text-lg font-bold tabular-nums hover:underline" data-open-piece="${n}">nº ${n}</button>`).join('<span class="text-base-300">·</span>')}</div>
+            <div class="text-base"><b>#${g.o.n}</b> · ${esc(g.o.client)}</div>
+            <div class="text-sm text-muted">Item ${g.idx+1} · ${esc(g.i.desc)}</div>
+            <div class="flex flex-wrap items-center gap-2 justify-between mt-1">
+              <span class="text-lg font-medium tabular-nums">${g.p.h} × ${g.p.w} × ${g.p.l} <span class="text-sm text-muted font-normal">mm</span></span>
+              <span class="text-base">Qtd. <b>${g.ns.length}</b></span></div>
+            <div>${stageBadge(g.p.stage)}</div>
+          </div>`).join('')}
+          ${exc.map(s=>`<div class="card bg-base-100 border border-dashed border-base-300 p-4 gap-2">
+            <div class="text-lg font-bold">Excedente ${s.id}</div><div class="text-sm text-muted">Sem destinação imediata</div>
+            <div class="flex justify-between items-center"><span class="text-lg font-medium tabular-nums">${mm(s)} <span class="text-sm text-muted font-normal">mm</span></span><span>Qtd. <b>${s.qty}</b></span></div></div>`).join('')}</div>`
+          : `<div class="rounded-lg border border-dashed border-base-300 p-6 text-center text-muted">Nenhuma peça neste lote ainda. Use “Puxar para o lote” na fila.</div>`}
+      </div></div>`;
+  } else {
+    $('#prOpen').innerHTML = `<div class="card bg-base-100 border border-dashed border-base-300 p-10 text-center items-center gap-3">
+      <h2 class="text-xl font-bold">Nenhuma produção aberta</h2><p class="text-muted text-base">Registre uma produção informando a pedra bruta para começar um novo lote.</p>
+      <button class="btn btn-primary btn-lg" data-act-global="registrarProducao">Registrar produção</button></div>`;
+  }
+  // Fila aguardando corte
+  const q = queueItems();
+  $('#prQueue').innerHTML = `<div class="flex items-baseline justify-between mb-2 px-1"><h2 class="text-lg font-bold">Fila aguardando corte</h2><span class="text-sm text-muted">${q.length} ${pl(q.length,'item','itens')}</span></div>
+    <div class="space-y-3">${q.length ? q.map(x=>`<div class="card bg-base-100 border border-base-200 p-4 gap-2" style="border-left:6px solid ${PRIO[x.o.prio].color}">
+      <div class="flex flex-wrap items-center gap-x-2"><button class="text-xl font-bold tabular-nums hover:underline" data-open-order="${x.o.n}">#${x.o.n}</button><span class="font-medium truncate">${esc(x.o.client)}</span><span class="ml-auto text-sm font-medium" style="color:${PRIO[x.o.prio].color}">${x.o.prio}</span></div>
+      <div class="text-sm text-muted">Item ${x.idx+1} · ${esc(x.i.desc)}</div>
+      <div class="flex justify-between items-baseline"><span class="text-lg font-medium tabular-nums">${mm(x.i)} <span class="text-sm text-muted font-normal">mm</span></span><span class="text-base"><b>${x.free}</b> de ${x.i.qty} sem peça</span></div>
+      <button class="btn btn-outline btn-primary btn-lg w-full mt-1" data-gact="puxar" data-n="${x.o.n}" data-idx="${x.idx}" ${op?'':'disabled'}>Puxar para o lote</button>
+      ${op?'':'<p class="text-sm text-muted">Disponível quando houver uma produção aberta.</p>'}</div>`).join('')
+      : `<div class="card bg-base-100 border border-dashed border-base-300 p-6 text-center text-muted">Nenhum item aguardando corte.</div>`}</div>`;
+  // Últimas produções
+  const last = [...PRODS].sort((a,b)=>toD(b.at)-toD(a.at)).slice(0,10);
+  $('#prLast').innerHTML = `<div class="flex items-baseline justify-between mb-2 px-1"><h2 class="text-lg font-bold">Últimas produções</h2><span class="text-sm text-muted">10 mais recentes</span></div>
+    <div class="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">${last.map(p=>{ const o=orderByN(p.order), n=piecesOf(p.id).length, ex=SURPLUS.filter(s=>s.prod===p.id).reduce((a,s)=>a+s.qty,0);
+      return `<button class="row-card card bg-base-100 border border-base-200 p-4 gap-1 text-left" data-open-prod="${p.id}">
+        <div class="flex items-center gap-2"><span class="text-lg font-bold">${p.id}</span>${p.open?'<span class="badge border-0 font-medium" style="background:#d1e0ff;color:#175cd3">Aberta</span>':''}<span class="ml-auto text-sm text-muted">${fmtDate(p.at)}</span></div>
+        <div class="text-sm text-muted">${fmtTime(p.at)} · ${p.user}</div>
+        <div class="text-base"><b>#${o.n}</b> · ${esc(o.client)}</div>
+        <div class="text-sm">Pedra bruta <span class="tabular-nums font-medium">${p.raw.join(' × ')}</span> mm</div>
+        <div class="text-sm text-muted">${n} ${pl(n,'peça','peças')}${ex?` · ${ex} excedente${ex>1?'s':''}`:''}</div></button>`; }).join('')}</div>`;
+}
+function puxar(n, idx){
+  const op = openProd(); if(!op){ toast('Não há produção aberta.', 'error'); return; }
+  const o = orderByN(n), i = o.items[idx], free = i.qty - i.pieces.length;
+  for(let k=0;k<free;k++){ const p={n:nextPieceN(), stage:'c', h:i.h, w:i.w, l:i.l, prod:op.id}; i.pieces.push(p); }
+  updatePhase(o); toast(`${free} ${pl(free,'peça','peças')} do pedido #${o.n} incluída(s) no lote ${op.id}.`, 'ok'); renderAll();
+}
+function encerrar(){
+  const op = openProd();
+  confirmM({title:`Encerrar ${op.id}?`, ok:'Encerrar produção', html:`<p>O lote deixa de receber peças. As peças continuam seguindo as etapas normalmente.</p>`,
+    onOk:()=>{ op.open=false; toast(`Produção ${op.id} encerrada.`, 'ok'); renderAll(); }});
+}
+function panelProd(id){
+  const p = prodById(id), o = orderByN(p.order), groups = groupPieces(piecesOf(id)), exc = SURPLUS.filter(s=>s.prod===id);
+  return {kicker:'Produção', body:`<div class="space-y-5">
+    <div><div class="flex items-center gap-3"><h2 class="text-3xl font-bold">${p.id}</h2>${p.open?badge('Aberta','#175cd3','#d1e0ff'):badge('Encerrada','#5e5c5b','#f2f4f7')}</div>
+      <p class="text-base text-muted mt-1">${fmtDT(p.at)} · ${p.user}</p></div>
+    <div class="rounded-lg bg-canvas p-4"><div class="text-xs uppercase tracking-wide text-muted font-medium">Pedra bruta</div><div class="text-2xl font-bold tabular-nums">${p.raw.join(' × ')} <span class="text-base font-normal text-muted">mm</span></div><div class="text-base">${esc(o.stone)}</div></div>
+    <div>${sectionTitle('Pedido principal')}<button class="btn btn-outline w-full justify-start" data-open-order="${o.n}">#${o.n} · ${esc(o.client)}</button></div>
+    <div>${sectionTitle(`Peças (${groups.reduce((a,g)=>a+g.ns.length,0)})`)}${groups.length?`<div class="flex flex-wrap gap-1.5">${groups.flatMap(g=>g.ns.map(n=>{ const st=STAGE_BY[pieceCtx(n).p.stage]; return `<button class="badge badge-lg border-0 tabular-nums" style="background:${st.bg};color:${st.text}" data-open-piece="${n}">nº ${n} · ${st.short}</button>`; })).join('')}</div>`:'<p class="text-muted">Sem peças.</p>'}</div>
+    ${exc.length?`<div>${sectionTitle('Excedentes gerados')}<ul class="space-y-1">${exc.map(s=>`<li class="text-base"><b>${s.qty}×</b> ${mm(s)} mm <span class="text-muted">· ${s.id}</span></li>`).join('')}</ul></div>`:''}
+  </div>`, foot: p.open?`<button class="btn btn-outline btn-lg flex-1" data-gact="encerrar">Encerrar produção</button>`:''};
+}
+function panelPiece(n){
+  const x = pieceCtx(n);
+  if(!x) return {kicker:'Peça', body:`<p class="text-lg">Peça nº ${n} não está mais vinculada a um pedido (pode ter sido destinada a excedente).</p>`};
+  const {o,i,idx,p} = x, pr = prodById(p.prod), ev = [...hist(p)].sort((a,b)=>toD(b.at)-toD(a.at));
+  const changed = p.h!==i.h || p.w!==i.w || p.l!==i.l;
+  const step = (label, main, sub, attr='', last=false) => `<li class="relative pl-7 ${last?'':'pb-4'}">${last?'':'<span class="absolute left-[5px] top-4 bottom-0 w-0.5 bg-base-200"></span>'}<span class="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-secondary"></span><div class="text-xs uppercase tracking-wide text-muted font-medium">${label}</div><div class="text-base font-medium ${attr?'hover:underline cursor-pointer':''}" ${attr}>${main}</div>${sub?`<div class="text-sm text-muted">${sub}</div>`:''}</li>`;
+  return {kicker:'Peça', body:`<div class="space-y-6">
+    <div><div class="flex items-center flex-wrap gap-3"><h2 class="text-3xl font-bold tabular-nums">nº ${p.n}</h2>${stageBadge(p.stage)}</div>
+      <div class="text-2xl font-bold tabular-nums mt-2">${p.h} × ${p.w} × ${p.l} <span class="text-base font-normal text-muted">mm</span></div>
+      ${changed?`<p class="text-sm" style="color:#a15c07">Medidas alteradas · item pede ${mm(i)} mm</p>`:''}</div>
+    <div>${sectionTitle('Origem')}
+      <ol>
+        ${step('Produção', pr?`${pr.id} · ${fmtDT(pr.at)}`:'Registro manual', pr?.user||'', pr?`data-open-prod="${pr.id}"`:'')}
+        ${step('Matéria-prima', pr?`Pedra bruta ${pr.raw.join(' × ')} mm`:'—', esc(o.stone))}
+        ${step('Item', `Item ${idx+1} · ${esc(i.desc)}`, `${i.qty}× ${mm(i)} mm`)}
+        ${step('Pedido', `#${o.n} · ${esc(o.client)}`, `Prioridade ${o.prio} · ${PHASE[o.phase].label}`, `data-open-order="${o.n}"`, true)}
+      </ol></div>
+    <div>${sectionTitle('Histórico')}
+      <ol>${ev.map((e,k)=>`<li class="relative pl-7 ${k<ev.length-1?'pb-4':''}">
+        ${k<ev.length-1?'<span class="absolute left-[5px] top-4 bottom-0 w-0.5 bg-base-200"></span>':''}
+        <span class="absolute left-0 top-1.5 w-3 h-3 rounded-full ${k===0?'bg-primary':'bg-base-300'}"></span>
+        <div class="flex flex-wrap items-baseline gap-x-2"><span class="font-medium text-base">${esc(e.title)}</span>${k===0?'<span class="text-xs text-muted">mais recente</span>':''}</div>
+        ${e.desc?`<div class="text-sm">${esc(e.desc)}</div>`:''}
+        <div class="text-sm text-muted">${fmtDT(e.at)} · ${esc(e.user)}</div></li>`).join('')}</ol></div>
+    <form id="pcForm" class="rounded-lg border border-base-200 p-4 space-y-3" onsubmit="return false">
+      <div class="font-bold text-base">Alterar medidas <span class="text-muted font-normal text-sm">(mm)</span></div>
+      ${errBox('pcErr')}${mmFields('pc', p)}
+      <button class="btn btn-primary btn-lg w-full" data-gact="saveMM" data-n="${p.n}">Salvar medidas</button></form>
+  </div>`};
+}
+function saveMM(n){
+  const x = pieceCtx(n), m = readMM('pc');
+  if(!validMM(m)){ showErr('pcErr','Informe altura, largura e comprimento maiores que zero.'); return; }
+  const p = x.p, old = `${p.h} × ${p.w} × ${p.l}`, nw = `${m.h} × ${m.w} × ${m.l}`;
+  if(old===nw){ toast('As medidas não mudaram.'); return; }
+  Object.assign(p, m); histAdd(p, 'Alteração de medidas', `${old} → ${nw} mm`);
+  toast(`Peça nº ${n}: medidas atualizadas para ${nw} mm.`, 'ok'); renderAll();
+}
+
+/* Registrar produção */
+function registrarProducao(preOrder){
+  const elig = sorted().filter(o=>o.items.length && ['aguardando produção','em produção'].includes(o.phase));
+  const D = {order: preOrder || '', draft:[]};
+  const op = openProd();
+  const ord = () => orderByN(D.order);
+  const drafted = idx => D.draft.filter(d=>d.idx===idx).reduce((a,d)=>a+d.qty,0);
+  function paint(){
+    const o = ord();
+    $('#mBody').innerHTML = `${errBox('rpErr')}<div class="space-y-5">
+      ${fld('Pedido', `<select id="rpOrder" class="select select-lg w-full"><option value="">Selecione o pedido</option>${elig.map(x=>`<option value="${x.n}" ${+D.order===x.n?'selected':''}>#${x.n} · ${esc(x.client)} · ${x.prio}</option>`).join('')}</select>`)}
+      ${o?`<div class="rounded-lg bg-canvas px-4 py-2 text-base" style="border-left:6px solid ${PRIO[o.prio].color}">${esc(o.stone)} · ${o.items.length} ${pl(o.items.length,'item','itens')}</div>`:''}
+      <div><div class="font-bold text-base mb-2">Pedra bruta <span class="font-normal text-muted text-sm">(mm)</span></div>${mmFields('rpR', D.raw)}</div>
+      <div class="rounded-lg border border-base-200 p-4 space-y-4 ${o?'':'opacity-50 pointer-events-none'}">
+        <div class="font-bold text-base">Peças cortadas</div>
+        <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
+          ${fld('Item do pedido', `<select id="rpItem" class="select select-lg w-full">${o?o.items.map((i,idx)=>{ const free=i.qty-i.pieces.length-drafted(idx); return `<option value="${idx}" ${free<=0?'disabled':''}>Item ${idx+1} · ${esc(i.desc)} · ${mm(i)} (${free} livre${free===1?'':'s'})</option>`; }).join(''):''}</select>`)}
+          ${fld('Quantidade', numIn('rpQ','1','un.'))}
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer"><input id="rpExc" type="checkbox" class="checkbox checkbox-primary checkbox-lg"><span class="text-base"><b>Excedente</b> · sobra sem destinação imediata (não vincula a item)</span></label>
+        ${mmFields('rpP')}
+        <button type="button" class="btn btn-outline btn-primary btn-lg w-full" data-act="addPiece">${ICON.plus} Incluir peça</button>
+        <div>${sectionTitle(`Rascunho (${D.draft.reduce((a,d)=>a+d.qty,0)})`)}${D.draft.length?`<ul class="divide-y divide-[#eceae8] rounded-lg border border-base-200">${D.draft.map((d,k)=>`<li class="p-3 flex items-center gap-3">
+            <span class="text-lg font-bold tabular-nums">${d.qty}×</span><div class="min-w-0 flex-1"><div class="font-medium tabular-nums">${mm(d)} mm</div><div class="text-sm text-muted">${d.exc?'Excedente':`Item ${d.idx+1} · ${esc(o.items[d.idx].desc)}`}</div></div>
+            <button type="button" class="btn btn-ghost btn-square text-error" data-act="rmPiece" data-k="${k}" aria-label="Remover">${ICON.trash}</button></li>`).join('')}</ul>`:'<p class="text-muted text-base">Nenhuma peça incluída.</p>'}</div>
+      </div>
+      ${op?`<p class="text-sm text-muted">A produção aberta <b>${op.id}</b> será encerrada e esta passa a ser a produção aberta.</p>`:''}
+    </div>`;
+    fillItemMM();
+  }
+  function fillItemMM(){ const o=ord(); if(!o) return; const exc=$('#rpExc').checked; $('#rpItem').disabled = exc;
+    if(!exc){ const i=o.items[+$('#rpItem').value]; if(i){ $('#rpPH').value=i.h; $('#rpPW').value=i.w; $('#rpPL').value=i.l; } } }
+  const keepRaw = () => { D.raw = {h:$('#rpRH').value, w:$('#rpRW').value, l:$('#rpRL').value}; };
+  openM({title:'Registrar produção', body:'', size:'sm:max-w-2xl', saveLabel:'Salvar produção', mount:()=>{ paint();
+      $('#mBody').onchange = e=>{ if(e.target.id==='rpOrder'){ keepRaw(); D.order=e.target.value; D.draft=[]; paint(); } if(e.target.id==='rpItem'||e.target.id==='rpExc') fillItemMM(); }; },
+    acts:{
+      addPiece:()=>{ const o=ord(), exc=$('#rpExc').checked, idx=+$('#rpItem').value, q=+$('#rpQ').value, m=readMM('rpP');
+        if(!(q>0)||!validMM(m)){ showErr('rpErr','Informe quantidade e medidas da peça.'); return; }
+        if(!exc){ const free=o.items[idx].qty-o.items[idx].pieces.length-drafted(idx); if(q>free){ showErr('rpErr',`Item ${idx+1} tem só ${free} peça(s) sem vínculo. Marque “Excedente” para a sobra.`); return; } }
+        keepRaw(); D.draft.push({exc, idx:exc?null:idx, qty:q, ...m}); paint(); },
+      rmPiece:b=>{ keepRaw(); D.draft.splice(+b.dataset.k,1); paint(); },
+    },
+    onSave:()=>{ const o=ord(), raw=readMM('rpR');
+      if(!o){ showErr('rpErr','Selecione o pedido.'); return false; }
+      if(!validMM(raw)){ showErr('rpErr','Informe as medidas da pedra bruta.'); return false; }
+      if(!D.draft.length){ showErr('rpErr','Inclua ao menos uma peça cortada.'); return false; }
+      const id = 'P-' + (Math.max(...PRODS.map(p=>+p.id.slice(2)))+1);
+      if(op) op.open=false;
+      PRODS.push({id, at:nowISO(), user:session.user, order:o.n, raw:[raw.h,raw.w,raw.l], open:true});
+      let np=0, ne=0;
+      D.draft.forEach(d=>{ if(d.exc){ const sid='E-'+String(Math.max(...SURPLUS.map(s=>+s.id.slice(2)),31)+1).padStart(3,'0'); SURPLUS.unshift({id:sid, h:d.h,w:d.w,l:d.l, qty:d.qty, prod:id, order:o.n, at:nowISO(), user:session.user}); ne+=d.qty; }
+        else for(let k=0;k<d.qty;k++){ o.items[d.idx].pieces.push({n:nextPieceN(), stage:'c', h:d.h,w:d.w,l:d.l, prod:id}); np++; } });
+      updatePhase(o);
+      toast(`Produção ${id} registrada: ${np} ${pl(np,'peça','peças')}${ne?` e ${ne} excedente(s)`:''}.`, 'ok');
+      if(current!=='producao') go('producao'); else renderAll(); }});
+}
+
+/* =====================================================================
+   EXCEDENTES
+   ===================================================================== */
+const xs = {mode:'gte', h:'', w:'', l:''};
+$('#xFields').innerHTML = [['h','Altura'],['w','Largura'],['l','Comprimento']].map(([k,l])=>fld(l, `<input data-x="${k}" type="number" min="1" inputmode="numeric" class="input input-xl w-full num-in tabular-nums text-xl" placeholder="mm">`)).join('');
+function renderExc(){
+  $('#xMode').innerHTML = [['exact','Exata'],['gte','A partir de (≥)']].map(([k,l])=>`<button type="button" class="btn join-item ${xs.mode===k?'btn-neutral':''}" data-xmode="${k}" aria-pressed="${xs.mode===k}">${l}</button>`).join('');
+  const f = ['h','w','l'].filter(k=>xs[k]);
+  $('#xHint').textContent = f.length ? (xs.mode==='gte' ? 'Mostrando excedentes com medidas iguais ou maiores que as informadas.' : 'Mostrando somente excedentes com as medidas exatas informadas.') : 'Preencha uma ou mais medidas. Campos vazios não filtram.';
+  const list = SURPLUS.filter(s=>f.every(k=> xs.mode==='gte' ? s[k] >= +xs[k] : s[k] === +xs[k])).sort((a,b)=>a.h-b.h || a.w-b.w || a.l-b.l);
+  const tot = list.reduce((a,s)=>a+s.qty,0);
+  $('#xCount').textContent = `${list.length} ${pl(list.length,'registro','registros')} · ${tot} ${pl(tot,'unidade','unidades')}`;
+  $('#xList').innerHTML = list.length ? list.map(s=>{ const pr=prodById(s.prod), o=s.order?orderByN(s.order):null;
+    return `<article class="card bg-base-100 border border-base-200 p-5 gap-3">
+      <div class="flex items-start gap-3">
+        <div class="flex-1 min-w-0"><div class="text-xs uppercase tracking-wide text-muted font-medium">Medidas (mm) · ${s.id}</div>
+          <div class="text-2xl sm:text-3xl font-bold tabular-nums leading-tight whitespace-nowrap">${s.h} × ${s.w} × ${s.l}</div></div>
+        <div class="text-right shrink-0 pl-3 sm:pl-4 border-l border-base-200"><div class="text-xs uppercase tracking-wide text-muted font-medium"><span class="sm:hidden">Qtd.</span><span class="hidden sm:inline">Quantidade</span></div><div class="text-2xl sm:text-3xl font-bold tabular-nums leading-tight">${s.qty}</div></div>
+        <div class="dropdown dropdown-end -mr-2">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="Mais ações">${ICON.dots}</div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-30 w-44 p-2 shadow-lg border border-base-200 text-base">
+            <li><button class="text-error" data-gact="delExc" data-id="${s.id}">${ICON.trash} Excluir</button></li></ul>
+        </div>
+      </div>
+      <div class="text-base leading-snug rounded-lg bg-canvas px-3 py-2"><span class="text-sm text-muted">Origem: </span>
+        ${pr?`<button class="font-medium hover:underline text-left" data-open-prod="${pr.id}">Produção ${pr.id}</button> <span class="text-sm text-muted whitespace-nowrap">· ${fmtDate(pr.at)}</span>`:'<span class="font-medium">Registro manual</span>'}
+        ${o?`<div class="text-sm text-muted truncate">Pedido #${o.n} · ${esc(o.client)}</div>`:''}</div>
+      <button class="btn btn-outline btn-primary btn-lg w-full" data-gact="vincular" data-id="${s.id}">Vincular a pedido</button>
+    </article>`; }).join('')
+    : `<div class="md:col-span-2 2xl:col-span-3 card bg-base-100 border border-dashed border-base-300 py-14 text-center items-center"><h3 class="text-xl font-bold">Nenhum excedente encontrado</h3><p class="text-muted">Ajuste as medidas ou use “A partir de (≥)”.</p><button class="btn btn-outline mt-4" id="xClear2">Limpar busca</button></div>`;
+}
+$('#xFields').addEventListener('input', e=>{ const k=e.target.dataset.x; if(k){ xs[k]=e.target.value; renderExc(); } });
+const clearX = () => { Object.assign(xs,{h:'',w:'',l:''}); $$('[data-x]').forEach(i=>i.value=''); renderExc(); };
+$('#xClear').addEventListener('click', clearX);
+document.addEventListener('click', e=>{ if(e.target.closest('#xClear2')) clearX(); });
+
+function vincular(id){
+  const s = SURPLUS.find(x=>x.id===id);
+  const opts = sorted().filter(o=>['sem itens','aguardando produção','em produção'].includes(o.phase));
+  openM({title:'Vincular excedente a pedido', size:'sm:max-w-xl', saveLabel:'Vincular',
+    body:`${errBox('vErr')}<div class="rounded-lg bg-canvas p-4 mb-4 flex justify-between items-center"><div><div class="text-sm text-muted">${s.id}</div><div class="text-xl font-bold tabular-nums">${mm(s)} mm</div></div><div class="text-right"><div class="text-sm text-muted">Disponível</div><div class="text-xl font-bold">${s.qty}</div></div></div>
+      <div class="font-medium text-base mb-2">Pedido</div>
+      <ul class="space-y-2 max-h-[40vh] overflow-y-auto pr-1">${opts.map(o=>{ const free = o.items.reduce((a,i)=>a+i.qty-i.pieces.length,0), fit = o.items.some(i=>i.h===s.h && i.w<=s.w && i.l<=s.l && i.pieces.length<i.qty);
+        return `<li><label class="flex items-center gap-3 rounded-lg border border-base-200 p-3 ${free?'cursor-pointer hover:border-base-300':'opacity-50 cursor-not-allowed'}" style="border-left:6px solid ${PRIO[o.prio].color}">
+          <input type="radio" name="vOrder" value="${o.n}" class="radio radio-primary" ${free?'':'disabled'}>
+          <span class="text-lg font-bold tabular-nums">#${o.n}</span><span class="font-medium flex-1 min-w-0 truncate">${esc(o.client)}</span>
+          <span class="text-sm text-right ${fit?'font-medium':''}" style="color:${fit?'#027a48':'#5e5c5b'}">${free?(fit?'Compatível':`${free} sem peça`):'Sem itens pendentes'}</span></label></li>`; }).join('')}</ul>
+      <div class="mt-4 w-40">${fld('Quantidade', numIn('vQ','1','un.',`max="${s.qty}"`))}</div>`,
+    onSave:()=>{ const n = document.querySelector('#mBody input[name="vOrder"]:checked')?.value, q=+$('#vQ').value;
+      if(!n){ showErr('vErr','Selecione um pedido.'); return false; }
+      if(!(q>0) || q>s.qty){ showErr('vErr',`Quantidade entre 1 e ${s.qty}.`); return false; }
+      const o = orderByN(n);
+      const items = [...o.items.map((i,idx)=>({i,idx}))].sort((a,b)=>{ const fa=a.i.h===s.h&&a.i.w<=s.w&&a.i.l<=s.l, fb=b.i.h===s.h&&b.i.w<=s.w&&b.i.l<=s.l; return fb-fa; });
+      let left=q, made=0;
+      for(const {i,idx} of items){ while(left>0 && i.pieces.length<i.qty){ const p={n:nextPieceN(), stage:'c', h:s.h,w:s.w,l:s.l, prod:s.prod}; i.pieces.push(p); histAdd(p,'Vínculo com pedido/item',`#${o.n} · Item ${idx+1} · a partir do excedente ${s.id}`); left--; made++; } }
+      if(!made){ showErr('vErr','Este pedido não tem peças pendentes.'); return false; }
+      s.qty -= made; if(s.qty<=0) SURPLUS.splice(SURPLUS.indexOf(s),1);
+      updatePhase(o); toast(`${made} excedente(s) ${s.id} vinculado(s) ao pedido #${o.n}.`, 'ok'); renderAll(); }});
+}
+function delExc(id){
+  const s = SURPLUS.find(x=>x.id===id); document.activeElement?.blur();
+  confirmM({title:`Excluir excedente ${s.id}?`, ok:'Excluir', cls:'btn-error', html:`<p><b>${s.qty}×</b> ${mm(s)} mm. O registro sai da lista de excedentes disponíveis. Esta ação não pode ser desfeita.</p>`,
+    onOk:()=>{ SURPLUS.splice(SURPLUS.indexOf(s),1); toast(`Excedente ${s.id} excluído.`, 'ok'); renderAll(); }});
+}
+function excedenteModal(){
+  openM({title:'Registrar excedente', size:'sm:max-w-lg', body:`${errBox('eErr')}<div class="space-y-5">
+    <div class="w-40">${fld('Quantidade', numIn('eQ','1','un.'))}</div>
+    ${fld('Pedido relacionado <span class="text-muted font-normal">(opcional)</span>', `<select id="eO" class="select select-lg w-full"><option value="">Nenhum</option>${sorted().map(o=>`<option value="${o.n}">#${o.n} · ${esc(o.client)}</option>`).join('')}</select>`, 'Pedido cuja produção gerou a sobra.')}
+    <div><div class="font-medium text-base mb-2">Medidas <span class="text-muted font-normal text-sm">(mm)</span></div>${mmFields('e')}</div></div>`,
+    onSave:()=>{ const q=+$('#eQ').value, m=readMM('e'), on=$('#eO').value;
+      if(!(q>0)||!validMM(m)){ showErr('eErr','Informe quantidade, altura, largura e comprimento.'); return false; }
+      const o = on?orderByN(on):null, pr = o ? [...PRODS].reverse().find(p=>p.order===o.n) : null;
+      const id='E-'+String(Math.max(...SURPLUS.map(s=>+s.id.slice(2)),31)+1).padStart(3,'0');
+      SURPLUS.unshift({id, ...m, qty:q, prod:pr?.id||null, order:o?.n||null, at:nowISO(), user:session.user});
+      toast(`Excedente ${id} registrado (${q}× ${mm(m)} mm).`, 'ok'); renderAll(); }});
+}
+
+/* =====================================================================
+   CONFERÊNCIA
+   ===================================================================== */
+const cf = {n:null, banner:null};
+function renderConf(){
+  const b = cf.banner;
+  $('#cfBanner').innerHTML = b ? `<div role="status" class="w-full rounded-box p-5 flex items-center gap-4 text-xl font-bold" style="background:${b.ok?'#027a48':'#b42318'};color:#fefdfc">
+      <span class="shrink-0 w-12 h-12 rounded-full grid place-items-center" style="background:rgba(254,253,252,.18)">${b.ok?ICON.check:ICON.x}</span><div><div>${b.title}</div><div class="text-base font-normal opacity-90">${b.sub}</div></div></div>` : '';
+  const pend = allPieces().filter(x=>x.p.stage==='f' && isActive(x.o));
+  $('#cfQuick').innerHTML = pend.length ? `<div class="flex flex-wrap items-center gap-2"><span>Aguardando conferência:</span>${pend.map(x=>`<button type="button" class="badge badge-lg border-0 tabular-nums" style="background:#d1fadf;color:#027a48" data-cfpick="${x.p.n}">nº ${x.p.n}</button>`).join('')}</div>` : 'Nenhuma peça aguardando conferência.';
+  const x = cf.n ? pieceCtx(cf.n) : null;
+  if(x){ const {o,i,p} = x, okStage = p.stage==='f';
+    $('#cfCard').innerHTML = `<div class="card bg-base-100 border border-base-200 p-5 gap-4" style="border-left:6px solid ${PRIO[o.prio].color}">
+      <div class="flex items-center flex-wrap gap-3"><span class="text-3xl font-bold tabular-nums">nº ${p.n}</span><span class="ml-auto">${stageBadge(p.stage)}</span></div>
+      <div><div class="text-sm text-muted">Medidas (alt. × larg. × comp.)</div><div class="text-4xl font-bold tabular-nums leading-tight">${p.h} × ${p.w} × ${p.l} <span class="text-lg font-normal text-muted">mm</span></div></div>
+      <dl class="grid grid-cols-2 gap-3 text-base">
+        <div><dt class="text-sm text-muted">Pedido</dt><dd class="text-xl font-bold">#${o.n}</dd></div>
+        <div><dt class="text-sm text-muted">Cliente</dt><dd class="text-xl font-medium">${esc(o.client)}</dd></div>
+        <div class="col-span-2"><dt class="text-sm text-muted">Item</dt><dd>${esc(i.desc)} · pede ${mm(i)} mm</dd></div>
+      </dl>
+      ${okStage?'':`<div role="alert" class="alert border-0" style="background:#fef0c7;color:#a15c07">${alertIcon}<span class="text-base">Esta peça está em <b>${STAGE_BY[p.stage].label}</b>. A conferência é feita na etapa Conferência.</span></div>`}
+    </div>
+    <div class="grid grid-cols-2 gap-4 mt-4">
+      <button class="btn btn-success h-28 text-xl sm:text-2xl flex-col flex-nowrap gap-1 rounded-box whitespace-nowrap" data-gact="conforme" ${okStage?'':'disabled'}>${ICON.check}Conforme</button>
+      <button class="btn btn-error h-28 text-xl sm:text-2xl flex-col flex-nowrap gap-1 rounded-box whitespace-nowrap" data-gact="naoConforme" ${okStage?'':'disabled'}>${ICON.x}Não conforme</button>
+    </div>`;
+  } else $('#cfCard').innerHTML = `<div class="card bg-base-100 border border-dashed border-base-300 p-8 text-center text-muted text-lg">Digite ou leia o número da peça para conferir.</div>`;
+  $('#cfLast').innerHTML = `<h2 class="text-lg font-bold mb-2 px-1">Últimas conferências</h2>
+    <ul class="card bg-base-100 border border-base-200 divide-y divide-[#eceae8]">${CONFS.slice(0,5).map(c=>{ const x=pieceCtx(c.n);
+      return `<li class="flex items-center gap-3 px-4 py-3"><span class="w-3 h-3 rounded-full shrink-0" style="background:${c.ok?'#027a48':'#b42318'}"></span>
+        <div class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3"><span class="text-lg font-bold tabular-nums whitespace-nowrap">nº ${c.n}</span><span class="text-base ${c.ok?'':'font-medium'}" style="color:${c.ok?'#027a48':'#b42318'}">${c.ok?'Conforme':`Não conforme · ${c.dec}`}</span></div>
+        <span class="shrink-0 text-sm text-muted text-right whitespace-nowrap">${x?`#${x.o.n} · `:''}${fmtTime(c.at)}<span class="hidden sm:inline"> · ${c.user}</span></span></li>`; }).join('')}</ul>`;
+}
+function cfLookup(v){
+  const n = +String(v).replace(/\D/g,''); const x = n ? pieceCtx(n) : null;
+  const err = $('#cfErr');
+  if(!x){ err.hidden=false; err.textContent = v ? `Peça nº ${v} não encontrada.` : 'Digite o número da peça.'; $('#cfInput').classList.add('input-error'); cf.n=null; renderConf(); return; }
+  err.hidden=true; $('#cfInput').classList.remove('input-error'); cf.n=n; cf.banner=null; renderConf();
+}
+$('#cfForm').addEventListener('submit', e=>{ e.preventDefault(); cfLookup($('#cfInput').value.trim()); });
+function finishConf(ok, title, sub){ cf.banner={ok,title,sub}; cf.n=null; $('#cfInput').value=''; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); $('#cfInput').focus({preventScroll:true}); }
+function conforme(){
+  const x = pieceCtx(cf.n), p = x.p; p.stage='k'; histAdd(p,'Conclusão de etapa','Conferência conforme · medidas e condições finais verificadas');
+  CONFS.unshift({n:p.n, ok:true, at:nowISO(), user:session.user});
+  finishConf(true, `Peça nº ${p.n} conforme`, `Pedido #${x.o.n} · ${x.o.client} · peça concluída`);
+  updatePhase(x.o); renderAll();
+}
+function naoConforme(){
+  const x = pieceCtx(cf.n), p = x.p; let dec = '';
+  const opt = (k, t, d) => `<label class="flex items-start gap-4 rounded-box border-2 p-4 cursor-pointer ${dec===k?'border-primary bg-[#fbf6f1]':'border-base-200'}"><input type="radio" name="ncDec" value="${k}" class="radio radio-primary radio-lg mt-1" ${dec===k?'checked':''}><div><div class="text-xl font-bold">${t}</div><div class="text-base text-muted">${d}</div></div></label>`;
+  const paint = () => { $('#mBody').innerHTML = `${errBox('ncErr')}<p class="text-base mb-4">Peça <b>nº ${p.n}</b> · ${p.h} × ${p.w} × ${p.l} mm · pedido #${x.o.n}</p>
+    <div class="space-y-3">${opt('Recorte','Recorte','Volta ao processo para novo corte (retrabalho).')}${opt('Excedente','Excedente','Sai do pedido e vai para a área de excedentes.')}</div>
+    <div class="mt-4">${fld('Observação <span class="text-muted font-normal">(opcional)</span>', `<textarea id="ncObs" class="textarea textarea-lg w-full h-20" placeholder="Ex.: lasca na borda frontal"></textarea>`)}</div>`; };
+  openM({title:'Não conforme · decisão', size:'sm:max-w-lg', saveLabel:'Registrar', saveClass:'btn-error', mount:()=>{ paint(); $('#mBody').onchange=e=>{ if(e.target.name==='ncDec'){ const obs=$('#ncObs').value; dec=e.target.value; paint(); $('#ncObs').value=obs; } }; },
+    onSave:()=>{ if(!dec){ showErr('ncErr','Escolha a decisão: Recorte ou Excedente.'); return false; }
+      const obs = $('#ncObs').value.trim();
+      CONFS.unshift({n:p.n, ok:false, dec, at:nowISO(), user:session.user});
+      if(dec==='Recorte'){ p.stage='x'; histAdd(p,'Retrabalho',`Conferência não conforme · enviada para recorte${obs?' · '+obs:''}`); updatePhase(x.o);
+        setTimeout(()=>finishConf(false, `Peça nº ${p.n} não conforme`, `Enviada para recorte · pedido #${x.o.n}`)); }
+      else { x.i.pieces.splice(x.i.pieces.indexOf(p),1);
+        const id='E-'+String(Math.max(...SURPLUS.map(s=>+s.id.slice(2)),31)+1).padStart(3,'0');
+        SURPLUS.unshift({id, h:p.h,w:p.w,l:p.l, qty:1, prod:p.prod, order:x.o.n, at:nowISO(), user:session.user, fromPiece:p.n});
+        updatePhase(x.o);
+        setTimeout(()=>finishConf(false, `Peça nº ${p.n} não conforme`, `Destinada a excedente ${id} · item volta a ter 1 peça sem vínculo`)); }
+    }});
+}
+
+/* =====================================================================
+   CLIENTES
+   ===================================================================== */
+const cs = {q:'', tipo:''};
+const vipMark = () => `<span class="inline-flex items-center gap-0.5 text-xs font-bold uppercase tracking-wide" style="color:#613b1d" title="Cliente VIP">${ICON.star}VIP</span>`;
+const activeMark = a => `<span class="inline-flex items-center gap-1.5 text-sm ${a?'':'text-muted'}"><span class="w-2 h-2 rounded-full" style="background:${a?'#027a48':'#aba7a3'}"></span>${a?'Ativo':'Inativo'}</span>`;
+function renderClientes(){
+  const q = cs.q.trim().toLowerCase();
+  const list = CLIENTS.filter(c=>(!cs.tipo||c.type===cs.tipo) && (!q || [c.name,c.city,c.email,...c.phones].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  $('#cCount').textContent = `${list.length} ${pl(list.length,'cliente','clientes')}`;
+  $('#cBody').innerHTML = list.length ? list.map(c=>{ const n = ORDERS.filter(o=>o.client===c.name && isActive(o)).length;
+    return `<tr class="trow" tabindex="0" data-open-client="${c.id}">
+      <td><div class="flex items-center gap-2 flex-wrap"><span class="text-lg font-bold ${c.active?'':'text-muted'}">${esc(c.name)}</span>${c.vip?vipMark():''}</div>
+        <div class="mt-0.5 flex flex-wrap gap-x-3">${activeMark(c.active)}<span class="text-sm text-muted md:hidden">${TYPE_LABEL[c.type]}</span></div></td>
+      <td class="hidden md:table-cell text-base">${TYPE_LABEL[c.type]}</td>
+      <td class="hidden lg:table-cell text-base tabular-nums">${esc(c.phones[0]||'—')}</td>
+      <td class="hidden md:table-cell text-base">${esc(c.city)}</td>
+      <td class="hidden sm:table-cell text-right text-lg font-medium tabular-nums">${n}</td>
+      <td><div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="Ações de ${esc(c.name)}">${ICON.dots}</div>
+        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-30 w-52 p-2 shadow-lg border border-base-200 text-base">
+          <li><button data-gact="editCli" data-id="${c.id}">Editar</button></li>
+          <li><button data-gact="newOrderCli" data-id="${c.id}" ${c.active?'':'disabled'}>Novo pedido</button></li>
+          <li><button class="text-error" data-gact="delCli" data-id="${c.id}">${ICON.trash} Excluir</button></li></ul></div></td>
+    </tr>`; }).join('') : `<tr><td colspan="6" class="text-center py-12"><div class="text-xl font-bold">Nenhum cliente encontrado</div></td></tr>`;
+}
+$('#cQ').addEventListener('input', e=>{ cs.q=e.target.value; renderClientes(); });
+$('#cTipo').addEventListener('change', e=>{ cs.tipo=e.target.value; renderClientes(); });
+const FISCAL = [['ppsn','PPSN','Pessoa física'],['cro','CRO Number','Organização'],['vat','VAT Number',''],['trn','TRN','']];
+function panelClient(id){
+  const c = CLIENTS.find(x=>x.id===+id); if(!c) return {kicker:'Cliente', body:'<p>Cliente não encontrado.</p>'};
+  const os = ORDERS.filter(o=>o.client===c.name).sort((a,b)=>b.n-a.n), fis = FISCAL.filter(([k])=>c.fiscal[k]);
+  return {kicker:'Cliente', body:`<div class="space-y-5">
+    <div><div class="flex items-center gap-3 flex-wrap"><h2 class="text-3xl font-bold">${esc(c.name)}</h2>${c.vip?vipMark():''}</div>
+      <div class="flex gap-4 mt-1 text-base"><span class="text-muted">${TYPE_LABEL[c.type]}</span>${activeMark(c.active)}</div></div>
+    <div>${sectionTitle('Endereço')}<p class="text-base">${esc(c.addr)}<br>${esc(c.city)}, Co. ${esc(c.county)} · ${esc(c.eircode)}</p></div>
+    <div>${sectionTitle('Contato')}<p class="text-base">${esc(c.email||'—')}</p>${c.phones.map(p=>`<p class="text-base tabular-nums">${esc(p)}</p>`).join('')}</div>
+    ${c.reps.length?`<div>${sectionTitle('Representantes')}<ul class="space-y-2">${c.reps.map(r=>`<li class="rounded-lg border border-base-200 p-3"><div class="font-medium">${esc(r.name)}</div><div class="text-sm text-muted">${esc(r.role)} · ${esc(r.phone)}</div></li>`).join('')}</ul></div>`:''}
+    <div>${sectionTitle('Identificadores fiscais')}${fis.length?`<dl class="grid grid-cols-2 gap-3">${fis.map(([k,l])=>`<div><dt class="text-sm text-muted">${l}</dt><dd class="font-medium tabular-nums">${esc(c.fiscal[k])}</dd></div>`).join('')}</dl>`:'<p class="text-muted">Nenhum informado.</p>'}</div>
+    <div>${sectionTitle(`Pedidos (${os.length})`)}${os.length?`<ul class="space-y-2">${os.map(o=>`<li><button class="w-full text-left rounded-lg border border-base-200 p-3 flex items-center gap-3 hover:bg-[#fbf6f1]" style="border-left:6px solid ${PRIO[o.prio].color}" data-open-order="${o.n}"><span class="text-lg font-bold tabular-nums">#${o.n}</span><span class="ml-auto">${phaseBadge(o)}</span></button></li>`).join('')}</ul>`:'<p class="text-muted">Nenhum pedido.</p>'}</div>
+  </div>`, foot:`<button class="btn btn-outline btn-lg flex-1" data-gact="editCli" data-id="${c.id}">Editar</button><button class="btn btn-primary btn-lg flex-1" data-gact="newOrderCli" data-id="${c.id}" ${c.active?'':'disabled'}>Novo pedido</button>`};
+}
+function clienteModal(id){
+  const src = id ? CLIENTS.find(c=>c.id===+id) : null;
+  const D = src ? JSON.parse(JSON.stringify(src)) : {name:'', type:'organisation', vip:false, active:true, email:'', phones:[''], reps:[], addr:'', city:'', county:'', eircode:'', fiscal:{}};
+  if(!D.phones.length) D.phones=[''];
+  const isAS = src?.name==='All Stone';
+  const sync = () => { const b=$('#mBody'); if(!b.querySelector('[data-f="name"]')) return;
+    b.querySelectorAll('[data-f]').forEach(el=>{ const k=el.dataset.f; D[k] = el.type==='checkbox'?el.checked:el.value; });
+    D.type = b.querySelector('input[name="cType"]:checked')?.value || D.type;
+    D.phones = [...b.querySelectorAll('[data-phone]')].map(i=>i.value);
+    D.reps = [...b.querySelectorAll('[data-rep]')].map(r=>({name:r.querySelector('[data-r="name"]').value, role:r.querySelector('[data-r="role"]').value, phone:r.querySelector('[data-r="phone"]').value}));
+    FISCAL.forEach(([k])=>{ D.fiscal[k] = b.querySelector(`[data-fis="${k}"]`).value; });
+    D._fisOpen = b.querySelector('#fisToggle')?.checked; };
+  const tIn = (f, ph='', extra='') => `<input data-f="${f}" class="input input-lg w-full" value="${esc(D[f])}" placeholder="${ph}" ${extra}>`;
+  const paint = () => {
+    const org = D.type==='organisation';
+    $('#mBody').innerHTML = `${errBox('clErr')}
+    <section class="space-y-4"><h4 class="text-lg font-bold">Dados</h4>
+      <div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Tipo">${[['individual','Pessoa física'],['organisation','Organização']].map(([k,l])=>`<label class="flex items-center gap-3 rounded-lg border ${D.type===k?'border-primary bg-[#fbf6f1]':'border-base-200'} p-3 cursor-pointer"><input type="radio" name="cType" value="${k}" class="radio radio-primary" ${D.type===k?'checked':''}><span class="text-base font-medium">${l}</span></label>`).join('')}</div>
+      ${fld(org?'Nome da organização':'Nome completo', tIn('name', org?'Ex.: Crettyard Builders Ltd':'Ex.: Mary Walsh', isAS?'readonly':''), isAS?'Cliente padrão do sistema.':'')}
+      ${fld('Endereço', tIn('addr','Rua, número, complemento'))}
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${fld('Cidade', tIn('city'))}${fld('Condado (County)', tIn('county'))}${fld('Eircode', tIn('eircode','A65 F4E2'))}</div>
+      <div class="flex flex-wrap gap-6">
+        <label class="flex items-center gap-3 cursor-pointer"><input data-f="vip" type="checkbox" class="toggle toggle-primary" ${D.vip?'checked':''} ${isAS?'disabled':''}><span class="text-base"><b>VIP</b> · permite prioridade Máxima</span></label>
+        <label class="flex items-center gap-3 cursor-pointer"><input data-f="active" type="checkbox" class="toggle toggle-success" ${D.active?'checked':''}><span class="text-base"><b>Ativo</b></span></label>
+      </div>
+    </section>
+    <div class="divider my-5"></div>
+    <section class="space-y-4"><h4 class="text-lg font-bold">Contato e representantes</h4>
+      ${fld('E-mail', tIn('email','nome@empresa.ie','type="email"'))}
+      <div><div class="font-medium text-base mb-1.5">Telefones</div><div class="space-y-2">${D.phones.map((p,k)=>`<div class="flex gap-2"><input data-phone class="input input-lg flex-1 min-w-0 tabular-nums" value="${esc(p)}" placeholder="+353 …" inputmode="tel">${D.phones.length>1?`<button type="button" class="btn btn-ghost btn-square btn-lg text-error" data-act="rmPhone" data-k="${k}" aria-label="Remover telefone">${ICON.trash}</button>`:''}</div>`).join('')}</div>
+        <button type="button" class="btn btn-ghost text-primary mt-1 px-2" data-act="addPhone">${ICON.plus} Adicionar telefone</button></div>
+      <div><div class="font-medium text-base mb-1.5">Representantes ${org?'':'<span class="text-sm text-muted font-normal">(opcional)</span>'}</div>
+        ${D.reps.length?`<div class="space-y-2">${D.reps.map((r,k)=>`<div data-rep class="rounded-lg border border-base-200 p-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] items-center">
+          <input data-r="name" class="input w-full" value="${esc(r.name)}" placeholder="Nome"><input data-r="role" class="input w-full" value="${esc(r.role)}" placeholder="Função"><input data-r="phone" class="input w-full" value="${esc(r.phone)}" placeholder="Telefone">
+          <button type="button" class="btn btn-ghost btn-square text-error justify-self-end" data-act="rmRep" data-k="${k}" aria-label="Remover representante">${ICON.trash}</button></div>`).join('')}</div>`:'<p class="text-muted text-sm">Nenhum representante.</p>'}
+        <button type="button" class="btn btn-ghost text-primary mt-1 px-2" data-act="addRep">${ICON.plus} Adicionar representante</button></div>
+    </section>
+    <div class="collapse collapse-arrow border border-base-200 mt-6">
+      <input type="checkbox" id="fisToggle" ${D._fisOpen?'checked':''} aria-label="Mostrar identificadores fiscais">
+      <div class="collapse-title text-lg font-bold">Identificadores fiscais <span class="text-sm text-muted font-normal">· opcionais</span></div>
+      <div class="collapse-content"><div class="grid sm:grid-cols-2 gap-3">${FISCAL.map(([k,l,h])=>fld(l, `<input data-fis="${k}" class="input input-lg w-full tabular-nums" value="${esc(D.fiscal[k]||'')}">`, h?`Normalmente para ${h.toLowerCase()}.`:'')).join('')}</div>
+        <p class="text-sm text-muted mt-3">Guardados apenas para consulta; sem validação.</p></div>
+    </div>`; };
+  openM({title: src?`Editar cliente`:'Novo cliente', size:'sm:max-w-2xl', mount:()=>{ paint(); $('#mBody').onchange=e=>{ if(e.target.name==='cType'){ sync(); paint(); } }; },
+    acts:{ addPhone:()=>{ sync(); D.phones.push(''); paint(); }, rmPhone:b=>{ sync(); D.phones.splice(+b.dataset.k,1); paint(); },
+      addRep:()=>{ sync(); D.reps.push({name:'',role:'',phone:''}); paint(); }, rmRep:b=>{ sync(); D.reps.splice(+b.dataset.k,1); paint(); } },
+    onSave:()=>{ sync(); D.name=D.name.trim(); D.phones=D.phones.map(p=>p.trim()).filter(Boolean); D.reps=D.reps.filter(r=>r.name.trim());
+      $$('#mBody .input-error').forEach(i=>i.classList.remove('input-error'));
+      const miss=[]; if(!D.name) miss.push('name'); if(!D.addr.trim()) miss.push('addr'); if(!D.city.trim()) miss.push('city');
+      if(miss.length || (!D.phones.length && !D.email.trim())){ miss.forEach(f=>$(`#mBody [data-f="${f}"]`).classList.add('input-error'));
+        showErr('clErr', 'Preencha nome, endereço, cidade e ao menos um contato (telefone ou e-mail).'); if(!D.phones.length) D.phones=['']; return false; }
+      if(CLIENTS.some(c=>c.name.toLowerCase()===D.name.toLowerCase() && c.id!==src?.id)){ showErr('clErr','Já existe um cliente com esse nome.'); return false; }
+      delete D._fisOpen;
+      if(src){ const old=src.name; Object.assign(src, D); if(old!==D.name) ORDERS.forEach(o=>{ if(o.client===old) o.client=D.name; }); toast(`Cliente ${D.name} atualizado.`, 'ok'); }
+      else { D.id = Math.max(...CLIENTS.map(c=>c.id))+1; CLIENTS.push(D); toast(`Cliente ${D.name} cadastrado.`, 'ok'); }
+      renderAll(); }});
+}
+function delCli(id){
+  const c = CLIENTS.find(x=>x.id===+id), n = ORDERS.filter(o=>o.client===c.name).length; document.activeElement?.blur();
+  if(c.name==='All Stone'){ toast('All Stone é cliente padrão do sistema e não pode ser excluído.', 'error'); return; }
+  if(n){ confirmM({title:`Não é possível excluir ${c.name}`, ok: c.active?'Desativar cliente':'Entendi', cls:'btn-primary', html:`<p>Este cliente tem <b>${n} ${pl(n,'pedido','pedidos')}</b> registrados. Para preservar o histórico, desative o cadastro em vez de excluir.</p>`,
+      onOk:()=>{ if(c.active){ c.active=false; toast(`${c.name} desativado.`, 'ok'); renderAll(); } }}); return; }
+  confirmM({title:`Excluir ${c.name}?`, ok:'Excluir cliente', cls:'btn-error', html:`<p>O cadastro será removido. Esta ação não pode ser desfeita.</p>`,
+    onOk:()=>{ CLIENTS.splice(CLIENTS.indexOf(c),1); if($('#panel').open && PANEL.kind==='client') $('#panel').close(); toast(`Cliente ${c.name} excluído.`, 'ok'); renderAll(); }});
+}
+
+/* =====================================================================
+   FUNCIONÁRIOS
+   ===================================================================== */
+const perfilBadge = p => p==='Admin' ? badge('Admin','#613b1d','#e7d7c8','font-bold') : badge('Operador','#475467','#f2f4f7');
+function renderUsers(){
+  $('#uCount').textContent = `${USERS.filter(u=>u.active).length} ativos de ${USERS.length}`;
+  $('#uBody').innerHTML = USERS.map(u=>`<tr>
+    <td><div class="flex items-center gap-3"><div class="avatar avatar-placeholder"><div class="${u.active?'bg-secondary text-secondary-content':'bg-base-200 text-muted'} w-10 rounded-full"><span class="font-bold">${initials(u.ident)}</span></div></div>
+      <div class="min-w-0"><div class="text-lg font-bold ${u.active?'':'text-muted'}">${esc(u.ident)}</div><div class="flex flex-wrap items-center gap-2"><span class="sm:hidden">${perfilBadge(u.perfil)}</span>${u.ident===session.user?'<span class="text-sm text-muted">Você</span>':''}<span class="md:hidden text-sm text-muted">${u.active?'':'Inativo'}</span></div></div></div></td>
+    <td class="hidden sm:table-cell">${perfilBadge(u.perfil)}</td>
+    <td class="hidden md:table-cell">${u.active?badge('Ativo','#027a48','#d1fadf'):badge('Inativo','#5e5c5b','#eceae8')}</td>
+    <td class="text-center"><input type="checkbox" class="toggle toggle-success toggle-lg" data-utoggle="${u.id}" ${u.active?'checked':''} aria-label="${u.active?'Desativar':'Ativar'} ${esc(u.ident)}"></td>
+    <td class="px-1 sm:px-4"><button class="btn btn-ghost px-2 sm:px-4" data-gact="editUser" data-id="${u.id}">Editar</button></td></tr>`).join('');
+}
+document.addEventListener('change', e=>{ const t=e.target.closest('[data-utoggle]'); if(!t) return;
+  const u = USERS.find(x=>x.id===+t.dataset.utoggle);
+  if(u.ident===session.user && !t.checked){ t.checked=true; toast('Você não pode desativar o próprio usuário.', 'error'); return; }
+  u.active = t.checked; toast(`${u.ident} ${u.active?'ativado':'desativado'}.`, 'ok'); renderAll(); });
+function usuarioModal(id){
+  const u = id ? USERS.find(x=>x.id===+id) : null; let perfil = u?.perfil || 'Operador';
+  const body = () => `${errBox('uErr')}<div class="space-y-5">
+    ${fld('Identificação', `<input id="uId" class="input input-lg w-full" value="${esc(u?.ident||'')}" placeholder="ex.: nome.sobrenome" autocapitalize="none">`, 'Usada para entrar no sistema.')}
+    ${fld(u?'Nova senha <span class="text-muted font-normal">(opcional)</span>':'Senha', `<input id="uPw" type="password" class="input input-lg w-full" placeholder="${u?'Deixe em branco para manter':'Mínimo de 4 caracteres'}">`)}
+    <div><div class="font-medium text-base mb-2">Perfil</div><div class="grid grid-cols-2 gap-3">${[['Admin','Tudo, inclusive Administração'],['Operador','Telas de Operação']].map(([k,d])=>`<label class="flex items-start gap-3 rounded-lg border ${perfil===k?'border-primary bg-[#fbf6f1]':'border-base-200'} p-3 cursor-pointer"><input type="radio" name="uPerfil" value="${k}" class="radio radio-primary mt-0.5" ${perfil===k?'checked':''}><div><div class="font-bold text-base">${k}</div><div class="text-sm text-muted">${d}</div></div></label>`).join('')}</div></div></div>`;
+  openM({title: u?`Editar ${u.ident}`:'Cadastrar funcionário', size:'sm:max-w-lg', saveLabel: u?'Salvar':'Cadastrar', body:body(),
+    mount:()=>{ $('#mBody').onchange=e=>{ if(e.target.name==='uPerfil'){ const a=$('#uId').value, b=$('#uPw').value; perfil=e.target.value; $('#mBody').innerHTML=body(); $('#uId').value=a; $('#uPw').value=b; } }; },
+    onSave:()=>{ const ident=$('#uId').value.trim().toLowerCase(), pw=$('#uPw').value;
+      if(!/^[a-z0-9._-]{3,}$/.test(ident)){ showErr('uErr','Identificação com ao menos 3 caracteres (letras, números, ponto).'); return false; }
+      if(USERS.some(x=>x.ident===ident && x.id!==u?.id)){ showErr('uErr','Essa identificação já está em uso.'); return false; }
+      if((!u && pw.length<4) || (u && pw && pw.length<4)){ showErr('uErr','A senha precisa ter ao menos 4 caracteres.'); return false; }
+      if(u && u.ident===session.user && perfil!=='Admin'){ showErr('uErr','Você não pode remover o próprio perfil Admin.'); return false; }
+      if(u){ if(u.ident===session.user) session.user=ident; Object.assign(u,{ident, perfil}); if(pw) u.pass=pw; toast(`Usuário ${ident} atualizado.`, 'ok'); }
+      else { USERS.push({id:Math.max(...USERS.map(x=>x.id))+1, ident, perfil, active:true, pass:pw}); toast(`Usuário ${ident} cadastrado como ${perfil}.`, 'ok'); }
+      renderMenu(); renderAll(); }});
+}
+
+/* =====================================================================
+   LOGIN
+   ===================================================================== */
+function showLogin(){
+  $$('dialog[open]').forEach(d=>d.close());
+  $('#app').hidden = true; $('#login').hidden = false; document.title = 'Entrar · Crettyard';
+  $('#loginErr').hidden = true; $('#lgPassErr').hidden = true; $('#lgPass').classList.remove('input-error'); $('#lgUser').classList.remove('input-error');
+  $('#lgPass').value=''; setTimeout(()=>$('#lgUser').focus(), 50);
+}
+$('#loginForm').addEventListener('submit', e=>{ e.preventDefault();
+  const id = $('#lgUser').value.trim().toLowerCase(), pw = $('#lgPass').value, u = USERS.find(x=>x.ident===id);
+  const fail = (msg, field) => { $('#lgPassErr').hidden = field!=='pass'; $('#lgPassErr').textContent = field==='pass'?msg:'';
+    $('#loginErr').hidden = field==='pass'; $('#loginErr').textContent = field==='pass'?'':msg;
+    $('#lgPass').classList.toggle('input-error', field==='pass'); $('#lgUser').classList.toggle('input-error', field==='user'); };
+  if(!id || !pw) return fail('Informe identificação e senha.', 'user');
+  if(!u) return fail('Identificação não encontrada.', 'user');
+  if(!u.active) return fail('Usuário desativado. Procure um administrador.', 'user');
+  if(pw!==u.pass) return fail('Senha incorreta. Verifique e tente novamente.', 'pass');
+  session.user = u.ident; session.role = u.perfil; current = null;
+  location.hash = '#/painel'; toast(`Bem-vindo, ${u.ident}.`, 'ok');
+});
+
+/* =====================================================================
+   Eventos globais
+   ===================================================================== */
+const GACT = {
+  editPrio:b=>editPrio(+b.dataset.n), cancelOrder:b=>cancelOrder(+b.dataset.n),
+  produzir:b=>registrarProducao(+b.dataset.n), entregue:b=>marcarEntregue(+b.dataset.n),
+  puxar:b=>puxar(+b.dataset.n, +b.dataset.idx), encerrar:()=>encerrar(), saveMM:b=>saveMM(+b.dataset.n),
+  vincular:b=>{ document.activeElement?.blur(); vincular(b.dataset.id); }, delExc:b=>delExc(b.dataset.id),
+  conforme:()=>conforme(), naoConforme:()=>naoConforme(),
+  editCli:b=>{ document.activeElement?.blur(); clienteModal(+b.dataset.id); }, delCli:b=>delCli(+b.dataset.id),
+  newOrderCli:b=>{ document.activeElement?.blur(); novoPedido(CLIENTS.find(c=>c.id===+b.dataset.id).name); },
+  editUser:b=>usuarioModal(+b.dataset.id),
+};
+document.addEventListener('click', e=>{
+  if(e.target.closest('#m')) return; // modal tem delegação própria
+  const g = e.target.closest('[data-gact]'); if(g){ e.preventDefault(); if(!g.disabled) GACT[g.dataset.gact](g); return; }
+  const ag = e.target.closest('[data-act-global]');
+  if(ag){ const a=ag.dataset.actGlobal; if(a==='sair'){ toast('Sessão encerrada.'); location.hash='#/login'; } if(a==='registrarProducao') registrarProducao(); return; }
+  const role = e.target.closest('[data-role]');
+  if(role){ session.role = role.dataset.role; session.user = session.role==='Admin' ? 'marta.souza' : 'joao.pereira';
+    toast(`Perfil do protótipo: ${session.role} (${session.user}).`); if(current==='funcionarios' && session.role!=='Admin') go('painel'); else { renderMenu(); renderAll(); } return; }
+  if(e.target.closest('.dropdown')) return;
+  const piece = e.target.closest('[data-open-piece]'); if(piece){ openPanel('piece', +piece.dataset.openPiece); return; }
+  const prod = e.target.closest('[data-open-prod]'); if(prod){ openPanel('prod', prod.dataset.openProd); return; }
+  const oo = e.target.closest('[data-open-order]'); if(oo){ openPanel('order', +oo.dataset.openOrder); return; }
+  const oc = e.target.closest('[data-open-client]'); if(oc){ openPanel('client', +oc.dataset.openClient); return; }
+  const gto = e.target.closest('[data-goto-order]'); if(gto){ if($('#sheet').open) $('#sheet').close(); const n=+gto.dataset.gotoOrder; ps.tab=tabOf(orderByN(n)); if(location.hash===`#/pedidos/${n}`) route(); else go('pedidos', n); return; }
+  const pt = e.target.closest('[data-ptab]'); if(pt){ ps.tab = pt.dataset.ptab; renderPedidos(); return; }
+  const xm = e.target.closest('[data-xmode]'); if(xm){ xs.mode = xm.dataset.xmode; renderExc(); return; }
+  const cp = e.target.closest('[data-cfpick]'); if(cp){ $('#cfInput').value = cp.dataset.cfpick; cfLookup(cp.dataset.cfpick); return; }
+  // painel (original)
+  const row = e.target.closest('[data-order]'); if(row){ select(+row.dataset.order); return; }
+  const chip = e.target.closest('[data-chip]'); if(chip){ state.chip = chip.dataset.chip; state.extra=null; renderDash(); return; }
+  const st = e.target.closest('[data-stat]');
+  if(st){ const k = st.dataset.stat;
+    if(k==='exc'){ go('excedentes'); return; }
+    if(k==='producao'){ state.extra = state.extra==='producao'?null:'producao'; state.chip='todos'; }
+    else { state.extra=null; state.chip=k; }
+    renderDash(); return; }
+  if(e.target.closest('[data-clear-extra]')){ state.extra=null; renderDash(); return; }
+  if(e.target.closest('[data-reset]')){ Object.assign(state,{q:'',client:'',chip:'todos',extra:null}); $('#q').value=''; $('#client').value=''; renderDash(); return; }
+  const tt = e.target.closest('[data-toast]'); if(tt){ e.preventDefault(); toast(tt.dataset.toast); }
+});
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const t = e.target; if(!t.closest) return;
+  const row = t.closest('[data-order]'); if(row && t===row){ e.preventDefault(); select(+row.dataset.order); return; }
+  const tr = t.closest('tr[data-open-order], tr[data-open-client], [data-open-piece][tabindex]'); if(tr && t===tr){ e.preventDefault(); tr.click(); }
+});
+$('#hdrPrimary').addEventListener('click', ()=>VIEWS[current]?.primary?.[1]());
+$('#q').addEventListener('input', e=>{ state.q=e.target.value; renderChips(); renderQueue(); });
+$('#client').addEventListener('change', e=>{ state.client=e.target.value; renderChips(); renderQueue(); });
+['pieceForm','pieceFormM'].forEach(id=>$('#'+id).addEventListener('submit', e=>{ e.preventDefault(); findPiece(e.target.querySelector('input').value); }));
+window.addEventListener('resize', ()=>{ if(!isMobile() && $('#sheet').open) $('#sheet').close(); });
+
+/* initial: select first on desktop to demonstrate the detail panel */
+if(!isMobile()) state.sel = sorted()[0].n;
+route();
+</script>
+</body>
+</html>

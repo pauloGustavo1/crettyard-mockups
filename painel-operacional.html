@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="crettyard">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel operacional · Crettyard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+  [data-theme="crettyard"]{
+    color-scheme: light;
+    --color-base-100:#fefdfc; --color-base-200:#eceae8; --color-base-300:#aba7a3; --color-base-content:#272626;
+    --color-primary:#613b1d; --color-primary-content:#fefdfc;
+    --color-secondary:#b58759; --color-secondary-content:#272626;
+    --color-accent:#613b1d; --color-accent-content:#fefdfc;
+    --color-neutral:#272626; --color-neutral-content:#fefdfc;
+    --color-info:#175cd3; --color-info-content:#fefdfc;
+    --color-success:#027a48; --color-success-content:#fefdfc;
+    --color-warning:#a15c07; --color-warning-content:#fefdfc;
+    --color-error:#b42318; --color-error-content:#fefdfc;
+    --radius-selector:0.5rem; --radius-field:0.5rem; --radius-box:0.5rem;
+    --size-selector:0.25rem; --size-field:0.25rem; --border:1px; --depth:0; --noise:0;
+  }
+  html,body{font-family:"Roboto",system-ui,sans-serif;}
+  .row-card{transition:box-shadow .15s, background-color .15s;}
+  .row-card:hover{box-shadow:0 2px 10px rgba(39,38,38,.08);}
+  .row-card[aria-selected="true"]{background:#fbf6f1; box-shadow:0 0 0 2px #613b1d inset;}
+  .row-card:focus-visible{outline:3px solid #b58759; outline-offset:2px;}
+  .steps .step:before{height:.35rem;}
+  .steps .step-attn + .step:before, .steps .step-attn:before{background:#fee4e2;}
+  .steps .step-attn:after{background:#b42318 !important;color:#fefdfc !important;}
+</style>
+<style type="text/tailwindcss">
+  @theme {
+    --font-sans: "Roboto", system-ui, sans-serif;
+    --color-canvas:#f2f1f0; --color-muted:#5e5c5b; --color-menu-active:#e7d7c8; --color-sidebar:#272626;
+    --color-attention:#b42318; --color-attention-soft:#fee4e2;
+    --color-caution:#c4320a; --color-caution-soft:#ffead5;
+    --color-notice:#a15c07; --color-notice-soft:#fef0c7;
+    --color-sinfo:#175cd3; --color-sinfo-soft:#d1e0ff;
+    --color-rest:#667085; --color-rest-soft:#f2f4f7;
+    --color-ok:#027a48; --color-ok-soft:#d1fadf;
+  }
+</style>
+</head>
+<body class="bg-canvas text-base-content">
+<div class="drawer lg:drawer-open">
+  <input id="nav" type="checkbox" class="drawer-toggle">
+  <div class="drawer-content min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-base-100 border-b border-base-200 px-4 lg:px-6 py-4 flex flex-wrap items-center gap-3 sticky top-0 z-20">
+      <label for="nav" class="btn btn-ghost btn-square lg:hidden" aria-label="Abrir menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </label>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl font-bold leading-tight truncate">Painel operacional</h1>
+        <p class="text-sm text-muted truncate">Somente consulta · 11:25</p>
+      </div>
+      <form id="pieceForm" class="join hidden md:flex" autocomplete="off">
+        <input id="pieceInput" class="input join-item w-36" placeholder="Peça nº" inputmode="numeric" aria-label="Número da peça">
+        <button class="btn join-item" type="submit">Buscar peça nº</button>
+      </form>
+      <button class="btn btn-outline hidden sm:inline-flex" data-toast="Registrar produção abre em Produção (fora do escopo desta tela).">Registrar produção</button>
+      <button class="btn btn-primary" aria-label="Novo pedido" data-toast="Novo pedido abre em Pedidos (fora do escopo desta tela).">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="hidden sm:inline">Novo pedido</span>
+      </button>
+      <div class="hidden xl:flex items-center gap-3 pl-3 border-l border-base-200">
+        <div class="avatar avatar-placeholder"><div class="bg-secondary text-secondary-content w-10 rounded-full"><span class="font-bold">MS</span></div></div>
+        <div class="leading-tight"><div class="font-medium">Marta Souza</div><div class="text-xs text-muted">Atendimento</div></div>
+      </div>
+      <!-- mobile piece search -->
+      <form id="pieceFormM" class="join w-full md:hidden" autocomplete="off">
+        <input id="pieceInputM" class="input join-item flex-1" placeholder="Buscar peça nº" inputmode="numeric" aria-label="Número da peça">
+        <button class="btn join-item" type="submit">Buscar</button>
+      </form>
+    </header>
+
+    <main class="flex-1 px-4 lg:px-6 py-6 space-y-5">
+      <!-- Stats -->
+      <section aria-label="Resumo" class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="stats"></section>
+
+      <!-- Filters -->
+      <section class="flex flex-col gap-3" aria-label="Filtros">
+        <div class="flex gap-3 flex-1 flex-col sm:flex-row">
+          <label class="input input-lg w-full sm:w-64">
+            <svg class="w-5 h-5 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="q" type="search" inputmode="numeric" placeholder="Pedido nº" aria-label="Buscar por número do pedido">
+          </label>
+          <select id="client" class="select select-lg w-full sm:w-72" aria-label="Filtrar por cliente"></select>
+        </div>
+        <div id="chips" class="flex flex-nowrap sm:flex-wrap gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1" role="tablist" aria-label="Filtros rápidos"></div>
+      </section>
+      <div id="extraFilter"></div>
+
+      <!-- Queue + detail -->
+      <section class="grid grid-cols-1 lg:grid-cols-[minmax(0,63fr)_minmax(0,37fr)] gap-5 items-start">
+        <div>
+          <div class="flex items-baseline justify-between mb-2 px-1">
+            <h2 class="text-lg font-bold">Fila de pedidos</h2>
+            <span id="count" class="text-sm text-muted"></span>
+          </div>
+          <ul id="queue" class="space-y-3" role="listbox" aria-label="Pedidos"></ul>
+        </div>
+        <aside class="hidden lg:block sticky top-28">
+          <div id="detail" class="card bg-base-100 border border-base-200 max-h-[calc(100vh-8rem)] overflow-y-auto"></div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="drawer-side z-30">
+    <label for="nav" class="drawer-overlay" aria-label="Fechar menu"></label>
+    <nav class="bg-sidebar text-[#fefdfc] w-60 min-h-full flex flex-col">
+      <div class="px-6 py-6 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-secondary text-sidebar grid place-items-center font-bold text-lg">C</div>
+        <div><div class="font-bold text-lg leading-tight">Crettyard</div><div class="text-xs opacity-70">Controle de produção</div></div>
+      </div>
+      <ul class="menu w-full px-3 gap-1 text-base" id="menu"></ul>
+      <div class="mt-auto p-5 text-xs opacity-60">MVP · somente consulta</div>
+    </nav>
+  </div>
+</div>
+
+<!-- Mobile detail bottom sheet -->
+<dialog id="sheet" class="modal modal-bottom">
+  <div class="modal-box p-0 max-h-[88vh] bg-base-100">
+    <div class="sticky top-0 bg-base-100 z-10 flex justify-center pt-2 pb-1"><div class="w-12 h-1.5 rounded-full bg-base-200"></div></div>
+    <form method="dialog" class="absolute right-3 top-3 z-20"><button class="btn btn-ghost btn-circle" aria-label="Fechar">✕</button></form>
+    <div id="sheetBody"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<div id="toast" class="toast toast-end toast-bottom z-50"></div>
+
+<script>
+/* ---------- Domain ---------- */
+const STAGES = [
+  {k:'c', label:'Corte inicial', short:'Corte', text:'#475467', bg:'#f2f4f7', fill:'#667085'},
+  {k:'r', label:'Refinamento',   short:'Ref.',  text:'#175cd3', bg:'#d1e0ff', fill:'#175cd3'},
+  {k:'a', label:'Acabamento',    short:'Acab.', text:'#613b1d', bg:'#e7d7c8', fill:'#b58759'},
+  {k:'f', label:'Conferência',   short:'Conf.', text:'#027a48', bg:'#d1fadf', fill:'#027a48'},
+  {k:'x', label:'Recorte',       short:'Recorte', text:'#b42318', bg:'#fee4e2', fill:'#b42318'},
+];
+const STAGE_BY = Object.fromEntries(STAGES.map(s=>[s.k,s]));
+STAGE_BY.k = {k:'k', label:'Concluída', short:'Concl.', text:'#027a48', bg:'#d1fadf'};
+
+const PRIO = {
+  'Máxima': {rank:0, color:'#b42318', soft:'#fee4e2'},
+  'Urgente':{rank:1, color:'#c4320a', soft:'#ffead5'},
+  'Alta':   {rank:2, color:'#a15c07', soft:'#fef0c7'},
+  'Normal': {rank:3, color:'#667085', soft:'#f2f4f7'},
+};
+const PHASE = {
+  'sem itens':          {label:'Sem itens',            color:'#667085', soft:'#f2f4f7'},
+  'aguardando produção':{label:'Aguardando produção',  color:'#a15c07', soft:'#fef0c7'},
+  'em produção':        {label:'Em produção',          color:'#175cd3', soft:'#d1e0ff'},
+  'embalagem':          {label:'Embalagem',            color:'#613b1d', soft:'#e7d7c8'},
+  'expedição':          {label:'Expedição',            color:'#027a48', soft:'#d1fadf'},
+};
+
+let pieceSeq = 10401;
+const it = (qty,h,w,l,stages,desc) => ({qty,h,w,l,desc,pieces:[...stages].map(s=>({n:pieceSeq++, stage:s}))});
+const ORDERS = [
+  {n:2483, client:'All Stone', prio:'Máxima', phase:'em produção', stone:'Granito Preto São Gabriel', due:'21/10', items:[
+    it(2,20,600,2400,'aa','Bancada cozinha'), it(2,20,150,2400,'ax','Saia frontal'), it(1,20,900,900,'','Ilha – tampo')]},
+  {n:2490, client:'All Stone', prio:'Máxima', phase:'em produção', stone:'Quartzito Taj Mahal', due:'24/10', items:[
+    it(6,30,400,1200,'ccrrrr','Degraus'), it(3,30,300,1200,'ccc','Espelhos de degrau')]},
+  {n:2478, client:'All Stone', prio:'Máxima', phase:'expedição', mode:'entrega', stone:'Mármore Carrara', due:'19/10', items:[
+    it(4,20,500,1600,'kkkk','Lavatórios'), it(2,20,100,1600,'kk','Rodabancas')]},
+  {n:2486, client:'Construtora Horizonte', prio:'Urgente', phase:'em produção', stone:'Granito Cinza Corumbá', due:'22/10', items:[
+    it(10,20,550,1800,'rrrraaaaff','Bancadas apto. tipo'), it(2,20,550,2200,'xa','Bancada cobertura')]},
+  {n:2492, client:'Marmoraria Bela Vista', prio:'Urgente', phase:'aguardando produção', stone:'Granito Branco Itaúnas', due:'28/10', items:[
+    it(3,20,600,2000,'','Bancadas'), it(1,20,400,800,'','Prateleira')]},
+  {n:2480, client:'Arq. Helena Duarte', prio:'Urgente', phase:'embalagem', stone:'Travertino Romano', due:'20/10', items:[
+    it(3,30,450,1500,'kkk','Tampos de mesa'), it(1,30,450,450,'k','Tampo lateral')]},
+  {n:2484, client:'Granitos Serra Azul', prio:'Alta', phase:'em produção', stone:'Granito Verde Ubatuba', due:'25/10', items:[
+    it(8,20,300,600,'cccccc','Soleiras')]},
+  {n:2488, client:'Studio Pedra & Forma', prio:'Alta', phase:'em produção', stone:'Quartzo Branco Prime', due:'23/10', items:[
+    it(2,20,600,3000,'ff','Bancadas ilha'), it(2,20,200,3000,'af','Frontões')]},
+  {n:2475, client:'Residencial Ipê', prio:'Alta', phase:'expedição', mode:'retirada', stone:'Granito Preto Absoluto', due:'18/10', items:[
+    it(12,20,150,1000,'kkkkkkkkkkkk','Peitoris')]},
+  {n:2495, client:'Casa Nobre Interiores', prio:'Normal', phase:'sem itens', stone:'—', due:'—', items:[]},
+  {n:2479, client:'Marmoraria Bela Vista', prio:'Normal', phase:'em produção', stone:'Mármore Travertino', due:'27/10', items:[
+    it(5,20,500,1400,'aaakk','Nichos de banheiro')]},
+  {n:2482, client:'Construtora Horizonte', prio:'Normal', phase:'embalagem', stone:'Granito Cinza Andorinha', due:'26/10', items:[
+    it(6,20,250,1200,'kkkkkk','Soleiras de porta')]},
+  {n:2489, client:'Granitos Serra Azul', prio:'Normal', phase:'em produção', stone:'Granito Amarelo Ornamental', due:'30/10', items:[
+    it(4,30,400,1000,'rrcc','Degraus'), it(1,30,400,1600,'x','Patamar')]},
+  {n:2493, client:'Residencial Ipê', prio:'Normal', phase:'aguardando produção', stone:'Granito Preto Absoluto', due:'04/11', items:[
+    it(8,20,150,1200,'','Peitoris bloco B')]},
+];
+const EXCEDENTES = 23;
+
+/* ---------- Derived ---------- */
+function stats(o){
+  const c = {c:0,r:0,a:0,f:0,x:0,k:0}; let total=0, linked=0, unlinkedItems=0;
+  o.items.forEach(i=>{ total+=i.qty; linked+=i.pieces.length; if(!i.pieces.length) unlinkedItems++; i.pieces.forEach(p=>c[p.stage]++); });
+  return {c,total,linked,unlinked: total-linked, unlinkedItems, done:c.k, attention:c.x>0};
+}
+const pl = (n,s,p) => n===1?s:p;
+function situation(o){
+  const s = stats(o);
+  if(o.phase==='sem itens') return 'Pedido sem itens cadastrados. Aguardando o atendimento lançar as medidas.';
+  if(o.phase==='expedição') return `Pronto: ${s.total} ${pl(s.total,'peça conferida','peças conferidas')}, aguardando ${o.mode==='retirada'?'retirada pelo cliente':'entrega'}.`;
+  if(o.phase==='embalagem') return `${s.total} ${pl(s.total,'peça conferida','peças conferidas')}, em embalagem.`;
+  if(o.phase==='aguardando produção') return `Produção ainda não iniciada. ${o.items.length} ${pl(o.items.length,'item sem peça vinculada','itens sem peça vinculada')} (${s.total} ${pl(s.total,'peça','peças')}).`;
+  const parts=[];
+  const phr = {c:['no corte','no corte'], r:['no refinamento','no refinamento'], a:['no acabamento','no acabamento'], f:['em conferência','em conferência'], x:['em recorte','em recorte'], k:['concluída','concluídas']};
+  ['a','r','c','f','x','k'].forEach(k=>{ const n=s.c[k]; if(n) parts.push(`${n} ${parts.length?'':pl(n,'peça ','peças ')}${phr[k][n===1?0:1]}`.replace('  ',' ')); });
+  let t = parts.length ? parts.join(', ').replace(/, ([^,]*)$/, parts.length>1?' e $1':', $1') + '.' : '';
+  if(t) t = t.charAt(0).toUpperCase()+t.slice(1);
+  if(s.unlinkedItems) t += ` ${s.unlinkedItems} ${pl(s.unlinkedItems,'item sem peça vinculada','itens sem peça vinculada')}.`;
+  else if(s.unlinked) t += ` ${s.unlinked} ${pl(s.unlinked,'peça ainda não vinculada','peças ainda não vinculadas')}.`;
+  return t.trim();
+}
+function alerts(o){
+  const a=[];
+  o.items.forEach((i,idx)=>i.pieces.forEach(p=>{ if(p.stage==='x') a.push({lvl:'attention', text:`Peça nº ${p.n} em recorte`, sub:`Item ${idx+1} · ${i.desc} · ${mm(i)}`}); }));
+  o.items.forEach((i,idx)=>{ if(!i.pieces.length && o.phase==='em produção') a.push({lvl:'notice', text:`Item ${idx+1} sem peça vinculada`, sub:`${i.desc} · ${i.qty}× ${mm(i)}`});
+    else if(i.pieces.length && i.pieces.length<i.qty) a.push({lvl:'notice', text:`${i.qty-i.pieces.length} de ${i.qty} peças do item ${idx+1} sem vínculo`, sub:`${i.desc} · ${mm(i)}`}); });
+  return a;
+}
+const mm = i => `${i.h} × ${i.w} × ${i.l}`;
+const sorted = () => [...ORDERS].sort((a,b)=>PRIO[a.prio].rank-PRIO[b.prio].rank || a.n-b.n);
+
+/* ---------- State ---------- */
+const state = {q:'', client:'', chip:'todos', extra:null, sel:null};
+const CHIPS = [
+  {k:'todos', label:'Todos', test:()=>true},
+  {k:'prio', label:'Prioritários', test:o=>o.prio==='Máxima'||o.prio==='Urgente'},
+  {k:'atencao', label:'Com atenção', test:o=>stats(o).attention},
+  {k:'saida', label:'Aguardando saída', test:o=>o.phase==='expedição'},
+];
+const EXTRA = { producao:{label:'Com peças em corte, refino ou acabamento', test:o=>{const c=stats(o).c; return c.c+c.r+c.a>0;}} };
+
+function baseFiltered(){
+  return sorted().filter(o => (!state.q || String(o.n).includes(state.q.replace(/\D/g,''))) && (!state.client || o.client===state.client));
+}
+function filtered(){
+  const chip = CHIPS.find(c=>c.k===state.chip);
+  return baseFiltered().filter(chip.test).filter(o=>!state.extra || EXTRA[state.extra].test(o));
+}
+
+/* ---------- Render: sidebar ---------- */
+const MENU = [
+  ['Painel operacional','M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z',true],
+  ['Pedidos','M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01'],
+  ['Planejamento','M3 5h18v16H3zM3 10h18M8 3v4M16 3v4'],
+  ['Produção','M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z'],
+  ['Excedentes','M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8'],
+  ['Conferência','M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'],
+  ['Clientes','M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'],
+  ['Administração','M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'],
+];
+document.getElementById('menu').innerHTML = MENU.map(([l,d,act])=>`
+  <li><a href="#" class="py-3 rounded-lg ${act?'bg-menu-active text-[#272626] font-bold':'text-[#fefdfc]/85 hover:bg-white/10'}" ${act?'aria-current="page"':`data-toast="${l} – fora do escopo deste mockup."`}>
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="${d}"/></svg>${l}</a></li>`).join('');
+
+/* ---------- Render: stats ---------- */
+function renderStats(){
+  const open = ORDERS.length, max = ORDERS.filter(o=>o.prio==='Máxima').length;
+  let c=0,r=0,a=0; ORDERS.forEach(o=>{const s=stats(o).c; c+=s.c; r+=s.r; a+=s.a;});
+  const wait = ORDERS.filter(o=>o.phase==='expedição');
+  const ret = wait.filter(o=>o.mode==='retirada').length;
+  const cards = [
+    {k:'todos', title:'Pedidos não entregues', value:open, desc:`<span class="font-bold text-attention">${max} Máxima</span> · All Stone`},
+    {k:'producao', title:'Peças em corte / refino / acab.', value:c+r+a, desc:`${c} corte · ${r} refino · ${a} acab.`},
+    {k:'saida', title:'Aguardando retirada / entrega', value:wait.length, desc:`${ret} retirada · ${wait.length-ret} entrega`},
+    {k:'exc', title:'Excedentes disponíveis', value:EXCEDENTES, desc:'Consultar em Excedentes'},
+  ];
+  const active = state.extra || state.chip;
+  document.getElementById('stats').innerHTML = cards.map(x=>`
+    <button class="stats bg-base-100 border ${active===x.k&&x.k!=='exc'?'border-primary ring-2 ring-[#613b1d]/30':'border-base-200'} text-left hover:border-base-300 transition-colors" data-stat="${x.k}" aria-pressed="${active===x.k}">
+      <div class="stat py-3 px-4">
+        <div class="stat-title text-muted text-sm whitespace-normal leading-snug">${x.title}</div>
+        <div class="stat-value text-3xl">${x.value}</div>
+        <div class="stat-desc text-muted text-sm whitespace-normal">${x.desc}</div>
+      </div></button>`).join('');
+}
+
+/* ---------- Render: filters ---------- */
+const clients = [...new Set(ORDERS.map(o=>o.client))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+document.getElementById('client').innerHTML = `<option value="">Todos os clientes</option>` + clients.map(c=>`<option>${c}</option>`).join('');
+
+function renderChips(){
+  const base = baseFiltered();
+  document.getElementById('chips').innerHTML = CHIPS.map(c=>{
+    const n = base.filter(c.test).length, on = state.chip===c.k;
+    return `<button role="tab" aria-selected="${on}" data-chip="${c.k}" class="btn sm:btn-lg rounded-full ${on?'btn-neutral':'btn-ghost bg-base-100 border-base-200'} gap-2 shrink-0">
+      ${c.k==='atencao'?'<span class="w-2.5 h-2.5 rounded-full bg-attention"></span>':''}${c.label}
+      <span class="badge ${on?'bg-base-100 text-base-content':'bg-base-200'} border-0 font-bold">${n}</span></button>`;
+  }).join('');
+  document.getElementById('extraFilter').innerHTML = state.extra ? `
+    <div class="flex items-center gap-2 text-sm"><span class="text-muted">Filtro do resumo:</span>
+      <button class="badge badge-lg bg-menu-active border-0 gap-2 py-3" data-clear-extra>${EXTRA[state.extra].label} <span aria-hidden="true">✕</span></button></div>` : '';
+}
+
+/* ---------- Render: queue ---------- */
+const badge = (label,color,soft,extra='') => `<span class="badge badge-lg border-0 font-medium whitespace-nowrap ${extra}" style="background:${soft};color:${color}">${label}</span>`;
+const prioBadge = p => badge(p, PRIO[p].color, PRIO[p].soft, p==='Máxima'?'font-bold':'');
+const phaseBadge = o => badge(PHASE[o.phase].label + (o.phase==='expedição'?` · ${o.mode}`:''), PHASE[o.phase].color, PHASE[o.phase].soft);
+const alertIcon = `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>`;
+
+function pipeline(o){
+  const s = stats(o);
+  return `<div class="grid grid-cols-5 gap-1 flex-1 min-w-0 w-full">` + STAGES.map(st=>{
+    const n = s.c[st.k], on = n>0;
+    return `<div class="tooltip tooltip-top" data-tip="${st.label}: ${n} ${pl(n,'peça','peças')}">
+      <div class="rounded-md px-1 py-1.5 text-center border ${on?'border-transparent':'border-base-200'}" style="${on?`background:${st.bg};color:${st.text}`:'color:#aba7a3'}">
+        <div class="text-[11px] uppercase sm:tracking-wide font-medium leading-none truncate">${st.short}</div>
+        <div class="text-lg font-bold leading-tight">${n}</div>
+      </div></div>`;
+  }).join('') + `</div>`;
+}
+
+function renderQueue(){
+  const list = filtered();
+  document.getElementById('count').textContent = `${list.length} ${pl(list.length,'pedido','pedidos')} · prioridade, depois nº`;
+  const ul = document.getElementById('queue');
+  if(!list.length){
+    ul.innerHTML = `<li class="card bg-base-100 border border-dashed border-base-300 py-14 px-6 text-center items-center">
+      <svg class="w-12 h-12 text-base-300 mb-3" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></svg>
+      <h3 class="text-xl font-bold">Tela vazia</h3>
+      <p class="text-muted mt-1 text-base">Nenhum pedido corresponde aos filtros aplicados.</p>
+      <button class="btn btn-outline mt-5" data-reset>Limpar filtros</button></li>`;
+    return;
+  }
+  ul.innerHTML = list.map(o=>{
+    const s = stats(o), sel = state.sel===o.n;
+    const pct = s.total ? Math.round(s.done/s.total*100) : 0;
+    return `<li><div role="option" tabindex="0" aria-selected="${sel}" data-order="${o.n}"
+      class="row-card card bg-base-100 border border-base-200 cursor-pointer px-5 py-4 gap-3" style="border-left:6px solid ${PRIO[o.prio].color}">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span class="text-2xl font-bold tabular-nums">#${o.n}</span>
+        <span class="text-lg font-medium truncate max-w-[16rem]">${o.client}</span>
+        <div class="flex flex-wrap gap-2 ml-auto items-center">
+          ${s.attention?`<span class="badge badge-lg border-0 gap-1 font-bold" style="background:#fee4e2;color:#b42318" title="Peça em recorte">${alertIcon}${s.c.x} recorte</span>`:''}
+          ${prioBadge(o.prio)} ${phaseBadge(o)}
+        </div>
+      </div>
+      ${o.items.length ? `<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        ${pipeline(o)}
+        <div class="shrink-0 w-full sm:w-24 flex sm:block items-center gap-3 sm:text-right">
+          <div class="text-base whitespace-nowrap"><span class="font-bold text-lg">${s.done}/${s.total}</span> peças</div>
+          <progress class="progress progress-success h-1.5 w-full" value="${pct}" max="100"></progress>
+        </div></div>` : ''}
+      <p class="text-base ${s.attention?'text-base-content':'text-muted'}">${situation(o)}</p>
+    </div></li>`;
+  }).join('');
+}
+
+/* ---------- Render: detail ---------- */
+function detailHTML(o){
+  if(!o) return `<div class="card-body items-center text-center py-16">
+      <svg class="w-14 h-14 text-base-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01"/></svg>
+      <h3 class="text-xl font-bold mt-2">Nenhum pedido selecionado</h3>
+      <p class="text-muted text-base">Toque em um pedido da fila para ver itens, peças e alertas.</p></div>`;
+  const s = stats(o), al = alerts(o);
+  const steps = [...STAGES.filter(x=>x.k!=='x'), STAGE_BY.k];
+  return `<div class="card-body gap-5 p-5">
+    <div>
+      <div class="text-sm text-muted">Pedido</div>
+      <div class="flex items-baseline gap-3 flex-wrap"><h2 class="text-3xl font-bold tabular-nums">#${o.n}</h2><span class="text-xl font-medium">${o.client}</span></div>
+      <div class="flex flex-wrap gap-2 mt-3">${prioBadge(o.prio)} ${phaseBadge(o)}</div>
+      <dl class="grid grid-cols-2 gap-3 mt-4 text-sm">
+        <div><dt class="text-muted">Material</dt><dd class="font-medium text-base">${o.stone}</dd></div>
+        <div><dt class="text-muted">Previsão</dt><dd class="font-medium text-base">${o.due}</dd></div>
+      </dl>
+    </div>
+    <div class="rounded-lg bg-canvas p-4">
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-1">Situação</div>
+      <p class="text-lg leading-snug">${situation(o)}</p>
+    </div>
+    ${al.length?`<div class="space-y-2">${al.map(a=>`
+      <div role="alert" class="alert items-start border-0 py-3" style="background:${a.lvl==='attention'?'#fee4e2':'#fef0c7'};color:${a.lvl==='attention'?'#b42318':'#a15c07'}">
+        ${alertIcon}<div><div class="font-bold text-base">${a.text}</div><div class="text-sm opacity-90">${a.sub}</div></div></div>`).join('')}</div>`:''}
+    ${o.items.length?`<div>
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-2">Etapas · ${s.linked} de ${s.total} peças vinculadas</div>
+      <ol class="grid grid-cols-5 relative" aria-label="Peças por etapa">
+        <span class="absolute left-[10%] right-[10%] top-[18px] h-1 bg-base-200 rounded" aria-hidden="true"></span>
+        ${steps.map(st=>{const n=s.c[st.k]; const on=n>0; return `<li class="relative flex flex-col items-center gap-1 text-center" title="${st.label}: ${n} ${pl(n,'peça','peças')}">
+          <span class="w-10 h-10 rounded-full grid place-items-center text-base font-bold" style="box-shadow:0 0 0 4px #fefdfc;${on?(st.k==='k'?'background:#027a48;color:#fefdfc':'background:#613b1d;color:#fefdfc'):'background:#eceae8;color:#5e5c5b'}">${n}</span>
+          <span class="text-xs ${on?'font-bold':'text-muted'}">${st.short}</span></li>`;}).join('')}
+      </ol>
+      ${s.c.x?`<div class="mt-2 flex items-center gap-2 text-sm font-bold" style="color:#b42318">${alertIcon} ${s.c.x} em recorte (retorna ao corte)</div>`:''}
+    </div>`:''}
+    <div>
+      <div class="text-xs uppercase tracking-wide text-muted font-medium mb-2">Itens (${o.items.length}) · medidas esp. × larg. × comp.</div>
+      ${o.items.length?`<ul class="divide-y divide-[#eceae8] rounded-lg border border-base-200">${o.items.map((i,idx)=>`<li class="p-3">
+          <div class="flex items-baseline gap-3">
+            <span class="text-lg font-bold tabular-nums shrink-0">${i.qty}×</span>
+            <span class="font-medium tabular-nums text-base">${mm(i)} <span class="text-muted text-sm font-normal">mm</span></span>
+            <span class="ml-auto text-xs text-muted shrink-0">Item ${idx+1}</span>
+          </div>
+          <div class="text-sm text-muted mb-2">${i.desc}</div>
+          <div class="flex flex-wrap gap-1.5">${i.pieces.length? i.pieces.map(p=>{const st=STAGE_BY[p.stage];
+            return `<span class="badge border-0 whitespace-nowrap tabular-nums ${p.stage==='x'?'font-bold':''}" style="background:${st.bg};color:${st.text}">nº ${p.n} · ${st.short}</span>`;}).join('')
+            : `<span class="text-sm font-medium" style="color:#a15c07">Sem peça vinculada</span>`}
+            ${i.pieces.length && i.pieces.length<i.qty?`<span class="badge border border-dashed border-base-300 bg-transparent text-muted">+${i.qty-i.pieces.length} sem vínculo</span>`:''}</div>
+        </li>`).join('')}</ul>`
+      : `<div class="rounded-lg border border-dashed border-base-300 p-5 text-center text-muted">Este pedido ainda não tem itens cadastrados.</div>`}
+    </div>
+    <button class="btn btn-primary btn-lg w-full" data-toast="Abrindo pedido #${o.n} em Pedidos…">Abrir em Pedidos</button>
+  </div>`;
+}
+function renderDetail(){
+  const o = ORDERS.find(x=>x.n===state.sel);
+  document.getElementById('detail').innerHTML = detailHTML(o);
+  document.getElementById('sheetBody').innerHTML = detailHTML(o);
+}
+
+function render(){ renderStats(); renderChips(); renderQueue(); renderDetail(); }
+
+/* ---------- Interaction ---------- */
+const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
+function select(n, open=true){
+  state.sel = n; renderQueue(); renderDetail();
+  if(open && isMobile()) document.getElementById('sheet').showModal();
+}
+function toast(msg, lvl='info'){
+  const t = document.createElement('div');
+  t.className = 'alert shadow-lg text-base border-0';
+  t.style.cssText = lvl==='error' ? 'background:#fee4e2;color:#b42318' : 'background:#272626;color:#fefdfc';
+  t.textContent = msg; document.getElementById('toast').appendChild(t);
+  setTimeout(()=>t.remove(), 2800);
+}
+document.addEventListener('click', e=>{
+  const row = e.target.closest('[data-order]'); if(row){ select(+row.dataset.order); return; }
+  const chip = e.target.closest('[data-chip]'); if(chip){ state.chip = chip.dataset.chip; state.extra=null; render(); return; }
+  const st = e.target.closest('[data-stat]');
+  if(st){ const k = st.dataset.stat;
+    if(k==='exc'){ toast(`${EXCEDENTES} excedentes disponíveis — consulte no menu Excedentes.`); return; }
+    if(k==='producao'){ state.extra = state.extra==='producao'?null:'producao'; state.chip='todos'; }
+    else { state.extra=null; state.chip=k; }
+    render(); return; }
+  if(e.target.closest('[data-clear-extra]')){ state.extra=null; render(); return; }
+  if(e.target.closest('[data-reset]')){ Object.assign(state,{q:'',client:'',chip:'todos',extra:null}); document.getElementById('q').value=''; document.getElementById('client').value=''; render(); return; }
+  const tt = e.target.closest('[data-toast]'); if(tt){ e.preventDefault(); toast(tt.dataset.toast); }
+});
+document.addEventListener('keydown', e=>{
+  const row = e.target.closest && e.target.closest('[data-order]');
+  if(row && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); select(+row.dataset.order); }
+});
+document.getElementById('q').addEventListener('input', e=>{ state.q=e.target.value; renderChips(); renderQueue(); });
+document.getElementById('client').addEventListener('change', e=>{ state.client=e.target.value; renderChips(); renderQueue(); });
+function findPiece(val){
+  const n = +String(val).replace(/\D/g,'');
+  for(const o of ORDERS) for(const i of o.items) for(const p of i.pieces) if(p.n===n){
+    Object.assign(state,{q:'',client:'',chip:'todos',extra:null}); document.getElementById('q').value=''; document.getElementById('client').value='';
+    render(); select(o.n); toast(`Peça nº ${n} · pedido #${o.n} · ${STAGE_BY[p.stage].label}`);
+    document.querySelector(`[data-order="${o.n}"]`)?.scrollIntoView({block:'nearest',behavior:'smooth'}); return;
+  }
+  toast(`Peça nº ${val||'—'} não encontrada nos pedidos não entregues.`, 'error');
+}
+['pieceForm','pieceFormM'].forEach(id=>document.getElementById(id).addEventListener('submit', e=>{ e.preventDefault(); findPiece(e.target.querySelector('input').value); }));
+window.addEventListener('resize', ()=>{ if(!isMobile()) document.getElementById('sheet').close(); });
+
+/* initial: select first on desktop to demonstrate the detail panel */
+if(!isMobile()) state.sel = sorted()[0].n;
+render();
+</script>
+</body>
+</html>
